@@ -49,9 +49,29 @@ An app that allows a user to search for exercises and create workouts.
 
 ---
 ## Entities
-### Entity 1
-### Entity 2
-(Add additional entities as needed.)
+### Exercise
+An immutable exercise from ExerciseDB: id, name, target muscles, equipment, body parts, video URL and instructions.
+
+### ExerciseSetGroup
+One exercise within a template plus its planned sets, where each set has a target weight and rep count. Sets can be added, removed or edited. The copy constructor makes a separate copy, so an ongoing workout never changes the template it started from.
+
+### Template
+A named, reusable workout plan: an ordered list of `ExerciseSetGroup`s.
+
+### OngoingWorkout
+A workout in progress, started from a `Template` at a recorded start time. It works on copies of the template's groups and tracks whether each set is completed. Sets can be added, removed or updated mid-workout. `toLogEntry()` turns the workout into a `LogEntry` that keeps only the completed sets.
+
+### LogEntry
+An immutable record of a finished workout: the template name, the date and time (`LocalDateTime`), and a list of `LogExerciseSet`s.
+
+### LogExerciseSet
+An immutable record of the sets actually performed for one exercise: the exercise name and matching lists of weights and reps.
+
+### FilterCriteria
+Optional search filters for exercises: name (matches any part of the name), body part, target muscle and equipment. `matches(Exercise)` ignores case and skips empty criteria.
+
+### Editor
+(TBD)
 ---
 ## API Usage
 **ExerciseDB**
@@ -66,38 +86,55 @@ An app that allows a user to search for exercises and create workouts.
 
 
 class Template
+Template : String name
 Template : List<ExerciseSetGroup> groups
 
 class ExerciseSetGroup
 ExerciseSetGroup : Exercise exercise
 ExerciseSetGroup : int setCount
-ExerciseSetGroup : List<double> weights
-ExerciseSetGroup : List<int> reps
+ExerciseSetGroup : List<Double> weights
+ExerciseSetGroup : List<Integer> reps
 
 class Exercise
+Exercise : String id
 Exercise : String name
-Exercise : String bodyPart
-Exercise : String instructions
-Exercise : String videoURL
+Exercise : List<String> targetMuscles
+Exercise : List<String> equipments
+Exercise : List<String> bodyParts
+Exercise : String videoUrl
+Exercise : List<String> instructions
 
 
 Template --* ExerciseSetGroup
-ExerciseSetGroup --* Exercise
+ExerciseSetGroup --> Exercise
+OngoingWorkout --* ExerciseSetGroup
+OngoingWorkout ..> LogEntry : creates
 LogEntry --* LogExerciseSet
+FilterCriteria ..> Exercise : matches
 
 class Editor
 
 class OngoingWorkout
+OngoingWorkout : String templateName
+OngoingWorkout : LocalDateTime startTime
+OngoingWorkout : List<ExerciseSetGroup> groups
+OngoingWorkout : List<List<Boolean>> setCompleted
 
 class LogEntry
 LogEntry : String templateName
-LogEntry : Localtime time
+LogEntry : LocalDateTime time
 LogEntry : List<LogExerciseSet> exercises
 
 class LogExerciseSet
-LogExerciseSet : exerciseName
-LogExerciseSet : List<double> weights
-LogExerciseSet : List<int> reps
+LogExerciseSet : String exerciseName
+LogExerciseSet : List<Double> weights
+LogExerciseSet : List<Integer> reps
+
+class FilterCriteria
+FilterCriteria : String nameQuery
+FilterCriteria : String bodyPart
+FilterCriteria : String targetMuscle
+FilterCriteria : String equipment
 
 
 interface TemplateAccess
