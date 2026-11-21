@@ -2,6 +2,10 @@ package entities;
 
 import java.util.List;
 
+/**
+ * Immutable exercise entity supporting summary search results and full detail records.
+ * List fields are defensively copied and exposed as unmodifiable lists.
+ */
 public class Exercise {
     private final String id;
     private final String name;
@@ -11,42 +15,38 @@ public class Exercise {
     private final String videoUrl;
     private final List<String> instructions;
 
-    public Exercise(String id,
-                    String name,
-                    List<String> targetMuscles,
-                    List<String> equipments,
-                    List<String> bodyParts,
-                    String videoUrl,
-                    List<String> instructions) {
-        this.id = id;
-        this.name = name;
-        this.videoUrl = videoUrl;
+    /** Creates an immutable {@code Exercise} from {@code Exercisebuilder}, normalizing null lists to empty. */
+    private Exercise(ExerciseBuilder builder) {
+        this.id = builder.id;
+        this.name = builder.name;
+        this.videoUrl = builder.videoUrl;
 
-        if (targetMuscles == null) {
+        if (builder.targetMuscles == null) {
             this.targetMuscles = List.of();
         } else {
-            this.targetMuscles = List.copyOf(targetMuscles);
+            this.targetMuscles = List.copyOf(builder.targetMuscles);
         }
 
-        if (equipments == null) {
+        if (builder.equipments == null) {
             this.equipments = List.of();
         } else {
-            this.equipments = List.copyOf(equipments);
+            this.equipments = List.copyOf(builder.equipments);
         }
 
-        if (bodyParts == null) {
+        if (builder.bodyParts == null) {
             this.bodyParts = List.of();
         } else {
-            this.bodyParts = List.copyOf(bodyParts);
+            this.bodyParts = List.copyOf(builder.bodyParts);
         }
 
-        if (instructions == null) {
+        if (builder.instructions == null) {
             this.instructions = List.of();
         } else {
-            this.instructions = List.copyOf(instructions);
+            this.instructions = List.copyOf(builder.instructions);
         }
     }
 
+    /** Getters */
     public String getId() {
         return id;
     }
@@ -73,5 +73,56 @@ public class Exercise {
 
     public List<String> getInstructions() {
         return instructions;
+    }
+
+    /** Fluent builder for constructing {@link Exercise} instances. */
+    public static class ExerciseBuilder {
+        private String id;
+        private String name;
+        private List<String> targetMuscles;
+        private List<String> equipments;
+        private List<String> bodyParts;
+        private String videoUrl;
+        private List<String> instructions;
+
+        public ExerciseBuilder id(String id) {
+            this.id = id;
+            return this;
+        }
+
+        public ExerciseBuilder name(String name) {
+            this.name = name;
+            return this;
+        }
+
+        public ExerciseBuilder targetMuscles(List<String> targetMuscles) {
+            this.targetMuscles = targetMuscles;
+            return this;
+        }
+
+        public ExerciseBuilder equipments(List<String> equipments) {
+            this.equipments = equipments;
+            return this;
+        }
+
+        public ExerciseBuilder bodyParts(List<String> bodyParts) {
+            this.bodyParts = bodyParts;
+            return this;
+        }
+
+        public ExerciseBuilder videoUrl(String videoUrl) {
+            this.videoUrl = videoUrl;
+            return this;
+        }
+
+        public ExerciseBuilder instructions(List<String> instructions) {
+            this.instructions = instructions;
+            return this;
+        }
+
+        /** Builds and returns the immutable {@link Exercise}. */
+        public Exercise build() {
+            return new Exercise(this);
+        }
     }
 }
