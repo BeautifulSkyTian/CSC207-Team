@@ -96,13 +96,41 @@ ExerciseSetGroup : List<Double> weights
 ExerciseSetGroup : List<Integer> reps
 
 class Exercise
-Exercise : String id
-Exercise : String name
-Exercise : List<String> targetMuscles
-Exercise : List<String> equipments
-Exercise : List<String> bodyParts
-Exercise : String videoUrl
-Exercise : List<String> instructions
+Exercise : -String id
+Exercise : -String name
+Exercise : -List<String> targetMuscles
+Exercise : -List<String> equipments
+Exercise : -List<String> bodyParts
+Exercise : -String videoUrl
+Exercise : -List<String> instructions
+Exercise : -Exercise(Builder builder)
+Exercise : +getId() String
+Exercise : +getName() String
+Exercise : +getTargetMuscles() List<String>
+Exercise : +getEquipments() List<String>
+Exercise : +getBodyParts() List<String>
+Exercise : +getVideoUrl() String
+Exercise : +getInstructions() List<String>
+
+class ExerciseBuilder
+ExerciseBuilder : -String id
+ExerciseBuilder : -String name
+ExerciseBuilder : -List<String> targetMuscles
+ExerciseBuilder : -List<String> equipments
+ExerciseBuilder : -List<String> bodyParts
+ExerciseBuilder : -String videoUrl
+ExerciseBuilder : -List<String> instructions
+ExerciseBuilder : +id(String id) Builder
+ExerciseBuilder : +name(String name) Builder
+ExerciseBuilder : +targetMuscles(List<String> targetMuscles) Builder
+ExerciseBuilder : +equipments(List<String> equipments) Builder
+ExerciseBuilder : +bodyParts(List<String> bodyParts) Builder
+ExerciseBuilder : +videoUrl(String videoUrl) Builder
+ExerciseBuilder : +instructions(List<String> instructions) Builder
+ExerciseBuilder : +build() Exercise
+
+Exercise +-- ExerciseBuilder
+ExerciseBuilder ..> Exercise
 
 
 Template --* ExerciseSetGroup
