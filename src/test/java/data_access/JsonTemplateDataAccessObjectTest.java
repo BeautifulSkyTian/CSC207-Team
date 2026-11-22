@@ -19,8 +19,15 @@ class JsonTemplateDataAccessObjectTest {
     @Test
     void templatesPersistAcrossInstances() {
         String path = tempDir.resolve("userdata/templates.json").toString();
-        Exercise bench = new Exercise("0025", "barbell bench press", List.of("pectorals"),
-                List.of("barbell"), List.of("chest"), null, List.of("Lie down.", "Press."));
+        Exercise bench = new Exercise.ExerciseBuilder()
+                .id("0025")
+                .name("barbell bench press")
+                .targetMuscles(List.of("pectorals"))
+                .equipments(List.of("barbell"))
+                .bodyParts(List.of("chest"))
+                .videoUrl(null)
+                .instructions(List.of("Lie down.", "Press."))
+                .build();
         ExerciseSetGroup group = new ExerciseSetGroup(bench);
         group.addSet(60.0, 10);
         group.addSet(65.5, 8);

@@ -139,14 +139,15 @@ public class JsonTemplateDataAccessObject implements TemplateDataAccessInterface
     }
 
     private static Exercise exerciseFromJson(JSONObject json) {
-        return new Exercise(
-                json.getString("id"),
-                json.getString("name"),
-                toStringList(json.optJSONArray("targetMuscles")),
-                toStringList(json.optJSONArray("equipments")),
-                toStringList(json.optJSONArray("bodyParts")),
-                json.isNull("videoUrl") ? null : json.getString("videoUrl"),
-                toStringList(json.optJSONArray("instructions")));
+        return new Exercise.ExerciseBuilder()
+                .id(json.getString("id"))
+                .name(json.getString("name"))
+                .targetMuscles(toStringList(json.optJSONArray("targetMuscles")))
+                .equipments(toStringList(json.optJSONArray("equipments")))
+                .bodyParts(toStringList(json.optJSONArray("bodyParts")))
+                .videoUrl(json.isNull("videoUrl") ? null : json.getString("videoUrl"))
+                .instructions(toStringList(json.optJSONArray("instructions")))
+                .build();
     }
 
     private static List<String> toStringList(JSONArray array) {
