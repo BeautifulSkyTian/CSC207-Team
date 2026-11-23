@@ -15,7 +15,7 @@ public class Exercise {
     private final String videoUrl;
     private final List<String> instructions;
 
-    /** Creates an immutable {@code Exercise} from {@code Exercisebuilder}, normalizing null lists to empty. */
+    /** Creates an immutable {@code Exercise} from {@code ExerciseBuilder}, normalizing null lists to empty. */
     private Exercise(ExerciseBuilder builder) {
         this.id = builder.id;
         this.name = builder.name;
