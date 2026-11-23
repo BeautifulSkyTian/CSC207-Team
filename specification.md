@@ -11,19 +11,20 @@ The code follows Clean Architecture. Each package belongs to one layer, and depe
 | `interface_adapter` | Interface adapters (controllers, presenters, view models) |
 | `view`, `data_access`, `app` | Frameworks & drivers |
 
-Entries marked `(planned)` don't exist yet. Entries marked `(planned removal)` still exist but will be deleted.
+Entries marked `(stub)` exist but have no behaviour yet: an empty class, or methods whose bodies are still `TODO`. A folder marked `(stub)` means every file in it is a stub.
 
 ```
 src/main/java/
-├── app/                                          (planned)
+├── app/
 │   ├── Main.java                                 starts the app
 │   └── AppBuilder.java                           creates and wires every class below
 │
-├── view/                                         (planned)
+├── view/
 │   ├── ViewManager.java                          shows the active view's card in a CardLayout
-│   └── HomeView.java                             template list, Start Workout, History, Import, Export
+│   ├── HomeView.java                             template list, Start Workout, History, Import, Export
+│   └── CreateTemplateView.java                   (stub) new template: name, exercises and their sets
 │
-├── interface_adapter/                            (planned)
+├── interface_adapter/
 │   ├── ViewModel.java                            base class: state + PropertyChangeSupport
 │   ├── ViewManagerModel.java                     name of the active view
 │   ├── home/
@@ -31,49 +32,49 @@ src/main/java/
 │   │   └── HomeState.java
 │   ├── workout/
 │   │   ├── WorkoutViewModel.java
-│   │   └── WorkoutState.java                     the ongoing workout as plain values, no entities
-│   ├── load_templates/
+│   │   └── WorkoutState.java                     (stub) the ongoing workout as plain values, no entities
+│   ├── load_templates/                           (stub)
 │   │   ├── LoadTemplatesController.java
 │   │   └── LoadTemplatesPresenter.java
-│   ├── start_workout/
+│   ├── start_workout/                            (stub)
 │   │   ├── StartWorkoutController.java
 │   │   └── StartWorkoutPresenter.java
-│   ├── view_history/
+│   ├── view_history/                             (stub)
 │   │   ├── ViewHistoryController.java
 │   │   └── ViewHistoryPresenter.java
-│   ├── import_template/
+│   ├── import_template/                          (stub)
 │   │   ├── ImportTemplateController.java
 │   │   └── ImportTemplatePresenter.java
-│   └── export_template/
+│   └── export_template/                          (stub)
 │       ├── ExportTemplateController.java
 │       └── ExportTemplatePresenter.java
 │
 ├── use_case/
 │   ├── TemplateDataAccessInterface.java          saved templates; planned: readFromFile, writeToFile
 │   ├── LogEntryDataAccessInterface.java          completed workouts
-│   ├── load_templates/                           (planned)
+│   ├── load_templates/                           (stub)
 │   │   ├── LoadTemplatesInputBoundary.java
 │   │   ├── LoadTemplatesInteractor.java
 │   │   ├── LoadTemplatesOutputBoundary.java
 │   │   └── LoadTemplatesOutputData.java
-│   ├── start_workout/                            (planned)
+│   ├── start_workout/                            (stub)
 │   │   ├── StartWorkoutInputBoundary.java
 │   │   ├── StartWorkoutInputData.java
 │   │   ├── StartWorkoutInteractor.java
 │   │   ├── StartWorkoutOutputBoundary.java
 │   │   └── StartWorkoutOutputData.java
-│   ├── view_history/                             (planned)
+│   ├── view_history/                             (stub)
 │   │   ├── ViewHistoryInputBoundary.java
 │   │   ├── ViewHistoryInteractor.java
 │   │   ├── ViewHistoryOutputBoundary.java
 │   │   └── ViewHistoryOutputData.java
-│   ├── import_template/                          (planned)
+│   ├── import_template/                          (stub)
 │   │   ├── ImportTemplateInputBoundary.java
 │   │   ├── ImportTemplateInputData.java
 │   │   ├── ImportTemplateInteractor.java
 │   │   ├── ImportTemplateOutputBoundary.java
 │   │   └── ImportTemplateOutputData.java
-│   └── export_template/                          (planned)
+│   └── export_template/                          (stub)
 │       ├── ExportTemplateInputBoundary.java
 │       ├── ExportTemplateInputData.java
 │       ├── ExportTemplateInteractor.java
@@ -89,7 +90,6 @@ src/main/java/
     ├── Exercise.java                             immutable, built with Exercise.ExerciseBuilder
     ├── ExerciseSetGroup.java
     ├── Template.java
-    ├── OngoingWorkout.java                       (planned removal) the workout now lives in WorkoutState
     ├── LogEntry.java
     ├── LogExerciseSet.java
     ├── FilterCriteria.java
