@@ -3,7 +3,6 @@ package data_access;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -34,11 +33,7 @@ final class JsonFiles {
             Path replacement = Files.createTempFile(directory, "json-", ".tmp");
             try {
                 Files.writeString(replacement, content, StandardCharsets.UTF_8);
-                try {
-                    Files.move(replacement, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-                } catch (AtomicMoveNotSupportedException e) {
-                    Files.move(replacement, target, StandardCopyOption.REPLACE_EXISTING);
-                }
+                Files.move(replacement, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
             } finally {
                 Files.deleteIfExists(replacement);
             }

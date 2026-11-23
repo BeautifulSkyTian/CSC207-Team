@@ -30,7 +30,7 @@ public class JsonTemplateDataAccessObject implements TemplateDataAccessInterface
     public static final String DEFAULT_PATH = "userdata/templates.json";
 
     private final Path filePath;
-    private final Map<String, Template> templates = new LinkedHashMap<>();
+    private Map<String, Template> templates = new LinkedHashMap<>();
 
     public JsonTemplateDataAccessObject() {
         this(DEFAULT_PATH);
@@ -42,39 +42,39 @@ public class JsonTemplateDataAccessObject implements TemplateDataAccessInterface
     }
 
     @Override
-    public synchronized void save(Template template) {
+    public void save(Template template) {
         Map<String, Template> updated = new LinkedHashMap<>(templates);
         // Renaming the same template must not leave its old name in storage.
         updated.entrySet().removeIf(entry ->
                 entry.getValue().getTemplateId().equals(template.getTemplateId())
                         && !entry.getKey().equals(template.getName()));
         updated.put(template.getName(), template);
-        commit(updated);
+        persist(updated);
     }
 
     @Override
-    public synchronized Template get(String name) {
+    public Template get(String name) {
         return templates.get(name);
     }
 
     @Override
-    public synchronized boolean existsByName(String name) {
+    public boolean existsByName(String name) {
         return templates.containsKey(name);
     }
 
     @Override
-    public synchronized List<Template> getAll() {
+    public List<Template> getAll() {
         return List.copyOf(templates.values());
     }
 
     @Override
-    public synchronized boolean delete(String name) {
+    public boolean delete(String name) {
         if (!templates.containsKey(name)) {
             return false;
         }
         Map<String, Template> updated = new LinkedHashMap<>(templates);
         updated.remove(name);
-        commit(updated);
+        persist(updated);
         return true;
     }
 
@@ -97,14 +97,13 @@ public class JsonTemplateDataAccessObject implements TemplateDataAccessInterface
         }
     }
 
-    private void commit(Map<String, Template> updated) {
+    private void persist(Map<String, Template> updated) {
         JSONArray array = new JSONArray();
         for (Template template : updated.values()) {
             array.put(templateToJson(template));
         }
         JsonFiles.replace(filePath, array.toString(2));
-        templates.clear();
-        templates.putAll(updated);
+        templates = updated;
     }
 
     static JSONObject templateToJson(Template template) {

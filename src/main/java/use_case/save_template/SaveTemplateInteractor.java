@@ -32,30 +32,20 @@ public final class SaveTemplateInteractor implements SaveTemplateInputBoundary {
             return;
         }
 
-        boolean saved;
+        Template existing = templateDataAccess.get(template.getName());
+        if (existing != null && !existing.getTemplateId().equals(template.getTemplateId())) {
+            presenter.presentFailure("A different template already uses that name.");
+            return;
+        }
+
         try {
-            saved = saveIfNameAvailable(template);
+            templateDataAccess.save(template);
         } catch (UncheckedIOException e) {
             presenter.presentFailure("Could not write the workout template file.");
             return;
         }
 
-        if (saved) {
-            presenter.presentSuccess(new SaveTemplateOutputData(template.getTemplateId(), template.getName()));
-        } else {
-            presenter.presentFailure("A different template already uses that name.");
-        }
-    }
-
-    private boolean saveIfNameAvailable(Template template) {
-        synchronized (templateDataAccess) {
-            Template existing = templateDataAccess.get(template.getName());
-            if (existing != null && !existing.getTemplateId().equals(template.getTemplateId())) {
-                return false;
-            }
-            templateDataAccess.save(template);
-            return true;
-        }
+        presenter.presentSuccess(new SaveTemplateOutputData(template.getTemplateId(), template.getName()));
     }
 
     private static Template buildTemplate(WorkoutTemplateDraft draft) {
