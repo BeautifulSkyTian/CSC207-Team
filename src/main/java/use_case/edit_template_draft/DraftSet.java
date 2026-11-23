@@ -2,12 +2,19 @@ package use_case.edit_template_draft;
 
 import java.util.Objects;
 
-/** Immutable raw set input. Blank and nonnumeric text is retained until saving. */
+/**
+ * Immutable raw input for either measurement pair in the shared ExerciseSetGroup.
+ * Blank and nonnumeric text is retained for validation by the save use case.
+ */
 public final class DraftSet {
     private final String weightText;
     private final String repsText;
     private final String timeText;
     private final String distanceText;
+
+    public DraftSet(String weightText, String repsText) {
+        this(weightText, repsText, "", "");
+    }
 
     public DraftSet(String weightText, String repsText, String timeText, String distanceText) {
         this.weightText = Objects.requireNonNull(weightText, "weightText");

@@ -2,9 +2,13 @@ package entities;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.UUID;
 
+/** A reusable workout plan with a stable identity independent of its editable name. */
 public class Template {
-    private String name;
+    private final String templateId;
+    private String templateName;
     private final List<ExerciseSetGroup> groups = new ArrayList<>();
 
     public Template(){
@@ -12,19 +16,32 @@ public class Template {
     }
 
     public Template(String name){
-        this.name = name;
+        this(UUID.randomUUID().toString(), name);
+    }
+
+    /** Restores an existing identity, for example when loading a saved template. */
+    public Template(String templateId, String name){
+        this.templateId = Objects.requireNonNull(templateId, "templateId");
+        if (templateId.isBlank()) {
+            throw new IllegalArgumentException("templateId must not be blank");
+        }
+        this.templateName = Objects.requireNonNull(name, "name");
+    }
+
+    public String getTemplateId(){
+        return templateId;
     }
 
     public String getName(){
-        return name;
+        return templateName;
     }
 
     public void setName(String name){
-        this.name = name;
+        this.templateName = Objects.requireNonNull(name, "name");
     }
 
     public void addGroup(ExerciseSetGroup group){
-        this.groups.add(group);
+        this.groups.add(Objects.requireNonNull(group, "group"));
     }
 
     public void removeGroup(int index){

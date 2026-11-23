@@ -52,6 +52,10 @@ src/main/java/
 ├── use_case/
 │   ├── TemplateDataAccessInterface.java          saved templates; planned: readFromFile, writeToFile
 │   ├── LogEntryDataAccessInterface.java          completed workouts
+│   ├── edit_template_draft/
+│   │   ├── WorkoutTemplateDraft.java            name, optional existing template ID, ordered draft groups
+│   │   ├── DraftExerciseGroup.java              row UUID, shared Exercise, MeasurementType, ordered sets
+│   │   └── DraftSet.java                        unfinished weight, reps, time, distance as text
 │   ├── load_templates/                           (stub)
 │   │   ├── LoadTemplatesInputBoundary.java
 │   │   ├── LoadTemplatesInteractor.java
@@ -89,6 +93,7 @@ src/main/java/
 └── entities/
     ├── Exercise.java                             immutable, built with Exercise.ExerciseBuilder
     ├── ExerciseSetGroup.java
+    ├── MeasurementType.java                      WEIGHT_REPS or TIME_DISTANCE
     ├── Template.java
     ├── LogEntry.java
     ├── LogExerciseSet.java
@@ -96,9 +101,36 @@ src/main/java/
     └── Editor.java
 
 src/test/java/
-└── data_access/
-    ├── JsonTemplateDataAccessObjectTest.java
-    └── JsonLogEntryDataAccessObjectTest.java
+├── data_access/
+│   ├── JsonTemplateDataAccessObjectTest.java
+│   └── JsonLogEntryDataAccessObjectTest.java
+├── entities/
+│   ├── TemplateTest.java
+│   └── ExerciseSetGroupTest.java
+└── use_case/edit_template_draft/
+    └── DraftModelsTest.java
 ```
 
 Not covered yet: the exercise database (`ExerciseAccess`), the workout use cases, and the History view.
+
+Template creation and import/export use the same `entities.Template` and
+`entities.ExerciseSetGroup`; there is no separate `entities.template_creation` model.
+Shared templates now have stable string IDs and groups select `WEIGHT_REPS` or
+`TIME_DISTANCE`, following Denise's supplied diagram. The time list uses integers;
+distances use doubles. Active measurement lists have matching lengths; unused lists
+are empty. Each group has one type, and operations for a different type fail.
+The existing one-argument group constructor and `addSet` remain weight/rep aliases.
+
+Draft snapshots are use-case data retaining unfinished text for both measurement
+pairs and the group's type. New drafts have no template ID; snapshots of existing
+plans preserve their ID. A draft row UUID identifies an exercise occurrence within
+an editing session. Snapshotting copies set values and preserves group order, so
+later mutations to saved groups do not change the draft. Replacement snapshots
+should retain an existing ID via the three-argument WorkoutTemplateDraft constructor.
+Parsing, save validation, and persistence remain work for the save use case.
+
+Template JSON includes IDs and measurement types. Legacy weight/rep files remain
+readable; missing IDs are derived from their unique names until the next save writes
+the ID explicitly. The DAO keeps its existing name-based lookup API and uses IDs to
+replace an old name entry when the same plan is renamed. Workout-session and log
+models elsewhere in the supplied diagram are outside this template-model change.

@@ -53,10 +53,13 @@ An app that allows a user to search for exercises and create workouts.
 An immutable exercise from ExerciseDB: id, name, target muscles, equipment, body parts, video URL and instructions.
 
 ### ExerciseSetGroup
-One exercise within a template plus its planned sets, where each set has a target weight and rep count. Sets can be added, removed or edited. The copy constructor makes a separate copy, so an ongoing workout never changes the template it started from.
+One exercise occurrence within a template, with a `MeasurementType` of `WEIGHT_REPS` or `TIME_DISTANCE`. Each set has either a weight and rep count, or an integer time and double distance. Sets can be added, removed or edited through the matching methods. The active measurement lists remain aligned; unused lists are empty. The copy constructor copies both the type and set values so changes to a copied group do not affect the original.
 
 ### Template
-A named, reusable workout plan: an ordered list of `ExerciseSetGroup`s.
+A reusable workout plan with a stable string `templateId`, an editable name, and an ordered list of `ExerciseSetGroup`s. New templates receive UUID strings; loading an existing template preserves its ID. Renaming a template does not change its identity.
+
+### MeasurementType
+The shared enumeration `WEIGHT_REPS` or `TIME_DISTANCE`, chosen per exercise group. Operations for the wrong measurement type are rejected. Measurement units and numeric ranges still need team agreement.
 
 ### OngoingWorkout (Planned for removal)
 A workout in progress, started from a `Template` at a recorded start time. It works on copies of the template's groups and tracks whether each set is completed. Sets can be added, removed or updated mid-workout. `toLogEntry()` turns the workout into a `LogEntry` that keeps only the completed sets.
@@ -72,6 +75,13 @@ Optional search filters for exercises: name (matches any part of the name), body
 
 ### Editor
 (TBD)
+
+### Template editor draft data (use-case layer)
+Template creation shares `entities.Template`, `entities.ExerciseSetGroup`, and `entities.Exercise` with import/export. The current data-access interface continues to look templates up by name while preserving their stable IDs.
+
+The editor keeps unfinished input in immutable `WorkoutTemplateDraft`, `DraftExerciseGroup`, and `DraftSet` snapshots under `use_case.edit_template_draft`. Each draft group records its measurement type; draft sets hold weight, reps, time, and distance as text. Each exercise occurrence has a temporary row UUID so repeated exercises can be edited independently. New drafts have no template ID, while `WorkoutTemplateDraft.fromTemplate` retains an existing ID and snapshots set values without retaining mutable groups. Replacement snapshots of an existing plan should pass that ID to the three-argument draft constructor. The future save use case will validate and convert the selected measurement pair into shared entities before calling `TemplateDataAccessInterface.save`; that workflow is not implemented yet.
+
+Template JSON preserves `templateId`, `measurementType`, and all four measurement lists. Older files without IDs or measurement types load as weight/rep templates with stable fallback IDs derived from their unique names; saving writes the new fields. Loading alone does not rewrite the file. Saving a renamed template removes its previous name entry using its ID.
 ---
 ## API Usage
 **ExerciseDB**
@@ -89,14 +99,36 @@ Optional search filters for exercises: name (matches any part of the name), body
 
 
 class Template
-Template : String name
+Template : String templateId
+Template : String templateName
 Template : List<ExerciseSetGroup> groups
+Template : getTemplateId() String
 
 class ExerciseSetGroup
 ExerciseSetGroup : Exercise exercise
+ExerciseSetGroup : MeasurementType measurementType
 ExerciseSetGroup : int setCount
 ExerciseSetGroup : List<Double> weights
 ExerciseSetGroup : List<Integer> reps
+ExerciseSetGroup : List<Integer> times
+ExerciseSetGroup : List<Double> distances
+ExerciseSetGroup : ExerciseSetGroup(Exercise, MeasurementType)
+ExerciseSetGroup : ExerciseSetGroup(ExerciseSetGroup)
+ExerciseSetGroup : addWeightRepSet(double, int) void
+ExerciseSetGroup : addTimeDistanceSet(int, double) void
+ExerciseSetGroup : removeSet(int) void
+ExerciseSetGroup : setWeight(int, double) void
+ExerciseSetGroup : setReps(int, int) void
+ExerciseSetGroup : setTime(int, int) void
+ExerciseSetGroup : setDistance(int, double) void
+ExerciseSetGroup : getMeasurementType() MeasurementType
+ExerciseSetGroup : getTimes() List<Integer>
+ExerciseSetGroup : getDistances() List<Double>
+
+enum MeasurementType {
+  WEIGHT_REPS
+  TIME_DISTANCE
+}
 
 class Exercise
 Exercise : -String id
@@ -138,6 +170,7 @@ ExerciseBuilder ..> Exercise
 
 Template --* ExerciseSetGroup
 ExerciseSetGroup --> Exercise
+ExerciseSetGroup --> MeasurementType
 OngoingWorkout --* ExerciseSetGroup
 OngoingWorkout ..> LogEntry : creates
 LogEntry --* LogExerciseSet
