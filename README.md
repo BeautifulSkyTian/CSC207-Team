@@ -72,6 +72,11 @@ Optional search filters for exercises: name (matches any part of the name), body
 
 ### Editor
 (TBD)
+
+### Template editor draft data (use-case layer)
+Template creation shares `entities.Template`, `entities.ExerciseSetGroup`, and `entities.Exercise` with import/export. Saved templates use their names as storage keys and contain ordered exercise groups with weight/rep sets.
+
+The editor keeps unfinished input in immutable `WorkoutTemplateDraft`, `DraftExerciseGroup`, and `DraftSet` snapshots under `use_case.edit_template_draft`. Each draft set holds weight and reps as text; each exercise occurrence has a temporary UUID so repeated exercises can be edited independently. `WorkoutTemplateDraft.fromTemplate` snapshots an existing shared template without retaining its mutable groups. The future save use case will validate and convert draft text into the shared entities before calling `TemplateDataAccessInterface.save`; that workflow is not implemented yet.
 ---
 ## API Usage
 **ExerciseDB**

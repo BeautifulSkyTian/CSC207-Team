@@ -51,6 +51,10 @@ src/main/java/
 ├── use_case/
 │   ├── TemplateDataAccessInterface.java          saved templates; planned: readFromFile, writeToFile
 │   ├── LogEntryDataAccessInterface.java          completed workouts
+│   ├── edit_template_draft/
+│   │   ├── WorkoutTemplateDraft.java            immutable name and ordered groups; snapshots shared Template
+│   │   ├── DraftExerciseGroup.java              temporary row UUID, shared Exercise, ordered draft sets
+│   │   └── DraftSet.java                        unfinished weight and reps as text
 │   ├── load_templates/                           (planned)
 │   │   ├── LoadTemplatesInputBoundary.java
 │   │   ├── LoadTemplatesInteractor.java
@@ -96,9 +100,19 @@ src/main/java/
     └── Editor.java
 
 src/test/java/
-└── data_access/
-    ├── JsonTemplateDataAccessObjectTest.java
-    └── JsonLogEntryDataAccessObjectTest.java
+├── data_access/
+│   ├── JsonTemplateDataAccessObjectTest.java
+│   └── JsonLogEntryDataAccessObjectTest.java
+└── use_case/edit_template_draft/
+    └── DraftModelsTest.java
 ```
 
 Not covered yet: the exercise database (`ExerciseAccess`), the workout use cases, and the History view.
+
+Template creation and import/export use the same `entities.Template` and
+`entities.ExerciseSetGroup`; there is no separate `entities.template_creation` model.
+Draft snapshots are use-case data, retain only weight/reps input, and do not add
+permanent template or group IDs. A draft row UUID identifies an exercise occurrence
+within an editing session. Snapshotting a shared template copies its set values and
+preserves group order, so later mutations to the saved groups do not change the draft.
+Parsing, save validation, and persistence remain work for the save use case.
