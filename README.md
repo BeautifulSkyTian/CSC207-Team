@@ -58,7 +58,7 @@ One exercise within a template plus its planned sets, where each set has a targe
 ### Template
 A named, reusable workout plan: an ordered list of `ExerciseSetGroup`s.
 
-### OngoingWorkout
+### OngoingWorkout (Planned for removal)
 A workout in progress, started from a `Template` at a recorded start time. It works on copies of the template's groups and tracks whether each set is completed. Sets can be added, removed or updated mid-workout. `toLogEntry()` turns the workout into a `LogEntry` that keeps only the completed sets.
 
 ### LogEntry
@@ -80,6 +80,9 @@ Optional search filters for exercises: name (matches any part of the name), body
 ---
 ## Design Diagrams
 ### UML Class Diagram
+
+```plantuml
+
 
 @startuml
 
@@ -142,11 +145,12 @@ FilterCriteria ..> Exercise : matches
 
 class Editor
 
-class OngoingWorkout
+class OngoingWorkout <<planned removal>>
 OngoingWorkout : String templateName
 OngoingWorkout : LocalDateTime startTime
 OngoingWorkout : List<ExerciseSetGroup> groups
 OngoingWorkout : List<List<Boolean>> setCompleted
+note right of OngoingWorkout : Planned removal: the workout\nwill live in WorkoutState instead.
 
 class LogEntry
 LogEntry : String templateName
@@ -165,14 +169,13 @@ FilterCriteria : String targetMuscle
 FilterCriteria : String equipment
 
 
-interface TemplateAccess
+interface TemplateDataAccessInterface
 interface ExerciseAccess
-interface LogAccess
-interface WorkoutCacheAccess
+interface LogEntryDataAccessInterface
 
 
 @enduml
-
+```
 
 ###. Sequence Diagrams
 ---
@@ -180,4 +183,4 @@ interface WorkoutCacheAccess
 [Instructions for running the program.]
 ---
 ## Notes
-[Any additional project information.]
+See [specification.md](specification.md) for the package layout.
