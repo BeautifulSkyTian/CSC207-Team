@@ -30,7 +30,7 @@ public class JsonTemplateDataAccessObject implements TemplateDataAccessInterface
     public static final String DEFAULT_PATH = "userdata/templates.json";
 
     private final Path filePath;
-    private final Map<String, Template> templates = new LinkedHashMap<>();
+    private Map<String, Template> templates = new LinkedHashMap<>();
 
     public JsonTemplateDataAccessObject() {
         this(DEFAULT_PATH);
@@ -43,12 +43,13 @@ public class JsonTemplateDataAccessObject implements TemplateDataAccessInterface
 
     @Override
     public void save(Template template) {
+        Map<String, Template> updated = new LinkedHashMap<>(templates);
         // Renaming the same template must not leave its old name in storage.
-        templates.entrySet().removeIf(entry ->
+        updated.entrySet().removeIf(entry ->
                 entry.getValue().getTemplateId().equals(template.getTemplateId())
                         && !entry.getKey().equals(template.getName()));
-        templates.put(template.getName(), template);
-        persist();
+        updated.put(template.getName(), template);
+        persist(updated);
     }
 
     @Override
@@ -68,11 +69,13 @@ public class JsonTemplateDataAccessObject implements TemplateDataAccessInterface
 
     @Override
     public boolean delete(String name) {
-        boolean removed = templates.remove(name) != null;
-        if (removed) {
-            persist();
+        if (!templates.containsKey(name)) {
+            return false;
         }
-        return removed;
+        Map<String, Template> updated = new LinkedHashMap<>(templates);
+        updated.remove(name);
+        persist(updated);
+        return true;
     }
 
     private void load() {
@@ -94,12 +97,13 @@ public class JsonTemplateDataAccessObject implements TemplateDataAccessInterface
         }
     }
 
-    private void persist() {
+    private void persist(Map<String, Template> updated) {
         JSONArray array = new JSONArray();
-        for (Template template : templates.values()) {
+        for (Template template : updated.values()) {
             array.put(templateToJson(template));
         }
-        JsonFiles.write(filePath, array.toString(2));
+        JsonFiles.replace(filePath, array.toString(2));
+        templates = updated;
     }
 
     static JSONObject templateToJson(Template template) {
