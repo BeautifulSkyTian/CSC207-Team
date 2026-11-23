@@ -2,6 +2,7 @@ package use_case;
 
 import entities.Template;
 
+import java.io.UncheckedIOException;
 import java.util.List;
 
 /**
@@ -11,7 +12,10 @@ import java.util.List;
  */
 public interface TemplateDataAccessInterface {
 
-    /** Saves a template, overwriting any existing template with the same name. */
+    /**
+     * Saves a template, overwriting any existing template with the same name.
+     * @throws UncheckedIOException if the template could not be written to storage
+     */
     void save(Template template);
 
     /** @return the template with the given name, or null if none exists. */

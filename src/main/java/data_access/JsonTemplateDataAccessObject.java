@@ -42,37 +42,40 @@ public class JsonTemplateDataAccessObject implements TemplateDataAccessInterface
     }
 
     @Override
-    public void save(Template template) {
+    public synchronized void save(Template template) {
+        Map<String, Template> updated = new LinkedHashMap<>(templates);
         // Renaming the same template must not leave its old name in storage.
-        templates.entrySet().removeIf(entry ->
+        updated.entrySet().removeIf(entry ->
                 entry.getValue().getTemplateId().equals(template.getTemplateId())
                         && !entry.getKey().equals(template.getName()));
-        templates.put(template.getName(), template);
-        persist();
+        updated.put(template.getName(), template);
+        commit(updated);
     }
 
     @Override
-    public Template get(String name) {
+    public synchronized Template get(String name) {
         return templates.get(name);
     }
 
     @Override
-    public boolean existsByName(String name) {
+    public synchronized boolean existsByName(String name) {
         return templates.containsKey(name);
     }
 
     @Override
-    public List<Template> getAll() {
+    public synchronized List<Template> getAll() {
         return List.copyOf(templates.values());
     }
 
     @Override
-    public boolean delete(String name) {
-        boolean removed = templates.remove(name) != null;
-        if (removed) {
-            persist();
+    public synchronized boolean delete(String name) {
+        if (!templates.containsKey(name)) {
+            return false;
         }
-        return removed;
+        Map<String, Template> updated = new LinkedHashMap<>(templates);
+        updated.remove(name);
+        commit(updated);
+        return true;
     }
 
     private void load() {
@@ -94,12 +97,14 @@ public class JsonTemplateDataAccessObject implements TemplateDataAccessInterface
         }
     }
 
-    private void persist() {
+    private void commit(Map<String, Template> updated) {
         JSONArray array = new JSONArray();
-        for (Template template : templates.values()) {
+        for (Template template : updated.values()) {
             array.put(templateToJson(template));
         }
-        JsonFiles.write(filePath, array.toString(2));
+        JsonFiles.replace(filePath, array.toString(2));
+        templates.clear();
+        templates.putAll(updated);
     }
 
     static JSONObject templateToJson(Template template) {
