@@ -2,6 +2,7 @@ package use_case.edit_template_draft;
 
 import entities.Exercise;
 import entities.ExerciseSetGroup;
+import entities.MeasurementType;
 import entities.Template;
 import org.junit.jupiter.api.Test;
 
@@ -19,6 +20,7 @@ class DraftModelsTest {
     void draftRetainsBlankNamesEmptyGroupsAndUnfinishedText() {
         WorkoutTemplateDraft empty = new WorkoutTemplateDraft("", List.of());
         assertEquals("", empty.getTemplateName());
+        assertNull(empty.getTemplateId());
         assertTrue(empty.getGroups().isEmpty());
         DraftSet set = new DraftSet("12.", "  not yet entered  ");
         assertEquals("12.", set.getWeightText());
@@ -99,6 +101,7 @@ class DraftModelsTest {
 
         WorkoutTemplateDraft draft = WorkoutTemplateDraft.fromTemplate(template);
         assertEquals("Push day", draft.getTemplateName());
+        assertEquals(template.getTemplateId(), draft.getTemplateId());
         assertEquals(2, draft.getGroups().size());
         DraftExerciseGroup firstDraft = draft.getGroups().get(0);
         DraftExerciseGroup secondDraft = draft.getGroups().get(1);
@@ -136,9 +139,10 @@ class DraftModelsTest {
         template.addGroup(group);
         WorkoutTemplateDraft draft = WorkoutTemplateDraft.fromTemplate(template);
         DraftExerciseGroup row = draft.getGroups().get(0);
-        WorkoutTemplateDraft edited = new WorkoutTemplateDraft("Edited", List.of(
+        WorkoutTemplateDraft edited = new WorkoutTemplateDraft(draft.getTemplateId(), "Edited", List.of(
                 new DraftExerciseGroup(row.getRowId(), row.getExercise(), List.of(new DraftSet("45", "8")))));
 
+        assertEquals(template.getTemplateId(), edited.getTemplateId());
         assertEquals(row.getRowId(), edited.getGroups().get(0).getRowId());
         assertEquals("45", edited.getGroups().get(0).getSets().get(0).getWeightText());
         assertEquals("Original", template.getName());
@@ -163,5 +167,52 @@ class DraftModelsTest {
         assertNotEquals(repeated.getGroups().get(0).getRowId(), repeated.getGroups().get(1).getRowId());
         assertThrows(NullPointerException.class, () -> WorkoutTemplateDraft.fromTemplate(null));
         assertThrows(NullPointerException.class, () -> DraftExerciseGroup.fromGroup(null));
+    }
+
+    @Test
+    void timedDraftsPreserveTypeRawInputAndIndependentSnapshots() {
+        DraftSet unfinished = new DraftSet("", "", "12:", " 0. ");
+        assertEquals("12:", unfinished.getTimeText());
+        assertEquals(" 0. ", unfinished.getDistanceText());
+        DraftExerciseGroup incomplete = new DraftExerciseGroup(UUID.randomUUID(), exercise,
+                MeasurementType.TIME_DISTANCE, List.of(unfinished));
+        assertEquals(MeasurementType.TIME_DISTANCE, incomplete.getMeasurementType());
+
+        ExerciseSetGroup timed = new ExerciseSetGroup(exercise, MeasurementType.TIME_DISTANCE);
+        timed.addTimeDistanceSet(60, 0.25);
+        timed.addTimeDistanceSet(120, 0.5);
+        Template template = new Template("existing-id", "Intervals");
+        template.addGroup(timed);
+        WorkoutTemplateDraft snapshot = WorkoutTemplateDraft.fromTemplate(template);
+        DraftExerciseGroup row = snapshot.getGroups().get(0);
+        assertEquals("existing-id", snapshot.getTemplateId());
+        assertEquals(MeasurementType.TIME_DISTANCE, row.getMeasurementType());
+        assertEquals("", row.getSets().get(0).getWeightText());
+        assertEquals("", row.getSets().get(0).getRepsText());
+        assertEquals("60", row.getSets().get(0).getTimeText());
+        assertEquals("0.25", row.getSets().get(0).getDistanceText());
+        assertEquals("120", row.getSets().get(1).getTimeText());
+        assertEquals("0.5", row.getSets().get(1).getDistanceText());
+        timed.setTime(0, 90);
+        timed.setDistance(0, 0.75);
+        timed.removeSet(1);
+        assertEquals(2, row.getSetCount());
+        assertEquals("60", row.getSets().get(0).getTimeText());
+        assertEquals("0.25", row.getSets().get(0).getDistanceText());
+        WorkoutTemplateDraft renamed = new WorkoutTemplateDraft(snapshot.getTemplateId(), "Renamed", snapshot.getGroups());
+        assertEquals("existing-id", renamed.getTemplateId());
+    }
+
+    @Test
+    void emptyTimedGroupsKeepTheirTypeAndRequiredFieldsAreChecked() {
+        DraftExerciseGroup snapshot = DraftExerciseGroup.fromGroup(
+                new ExerciseSetGroup(exercise, MeasurementType.TIME_DISTANCE));
+        assertEquals(MeasurementType.TIME_DISTANCE, snapshot.getMeasurementType());
+        assertTrue(snapshot.getSets().isEmpty());
+        assertThrows(NullPointerException.class, () -> new DraftExerciseGroup(
+                UUID.randomUUID(), exercise, null, List.of()));
+        assertThrows(NullPointerException.class, () -> new DraftSet("", "", null, ""));
+        assertThrows(NullPointerException.class, () -> new DraftSet("", "", "", null));
+        assertThrows(IllegalArgumentException.class, () -> new WorkoutTemplateDraft(" ", "Plan", List.of()));
     }
 }

@@ -7,6 +7,7 @@ import java.util.List;
 /**
  * Storage for workout templates.
  * A template's name is its unique key.
+ * Implementations preserve its stable templateId when saving or loading it.
  */
 public interface TemplateDataAccessInterface {
 
