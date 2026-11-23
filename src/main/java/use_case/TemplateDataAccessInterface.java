@@ -27,4 +27,10 @@ public interface TemplateDataAccessInterface {
      * @return true if a template was deleted, false if none matched.
      */
     boolean delete(String name);
+
+    // TODO: Template readFromFile(String path)
+    //  Returns the template stored in the JSON file at path. Does not save it.
+
+    // TODO: void writeToFile(Template template, String path)
+    //  Writes the template as JSON to the file at path.
 }
