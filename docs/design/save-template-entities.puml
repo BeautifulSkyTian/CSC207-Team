@@ -1,0 +1,29 @@
+@startuml
+title Save a template - shared domain models
+!pragma layout smetana
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+hide circle
+!$showSaved = 1
+!$showDraft = 0
+!include shared/template-models.iuml
+
+note left of Template
+    Matches the team's Template name and fields.
+    Storage assigns templateId on creation.
+    A blank name or empty template is rejected.
+    Expose collections as read-only snapshots.
+end note
+note right of ExerciseSetGroup
+    Keeps the team's setId field.
+    Proposed meaning: group ID unique in a template.
+    getGroup(groupId) finds a group by that ID.
+    setIndex is a zero-based position within a group.
+    Nonempty measurement lists must align by index.
+    Units and absent measurements need team agreement.
+end note
+note right of Exercise
+    Shared reference, not owned by one template.
+    Full metadata is omitted from this diagram.
+end note
+@enduml

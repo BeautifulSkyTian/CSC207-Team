@@ -1,0 +1,73 @@
+@startuml
+title Use case #2 (part 2): Save a template
+!pragma layout smetana
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+hide circle
+hide empty members
+package "Frameworks and drivers" #FFF1DB {
+    class TemplateEditorView <<Swing>>
+    class JsonWorkoutTemplateRepository {
+        - directory : Path
+    }
+}
+package "Interface adapters" #F0EAFE {
+    class SaveTemplateController {
+        + save(draft : WorkoutTemplateDraft) : void
+    }
+    class SaveTemplatePresenter
+    class TemplateEditorViewModel {
+        - draft : WorkoutTemplateDraft
+        - saveMessage : String
+        - saveSucceeded : boolean
+        + getDraft() : WorkoutTemplateDraft
+    }
+}
+package "Use cases" #E4F0FF {
+    interface SaveTemplateInputBoundary <<interface>> {
+        + execute(input : SaveTemplateInputData) : void
+    }
+    class SaveTemplateInteractor
+    interface SaveTemplateOutputBoundary <<interface>> {
+        + presentSuccess(result : SaveTemplateOutputData) : void
+        + presentFailure(message : String) : void
+    }
+    interface WorkoutTemplateWriter <<interface>> {
+        + create(templateName : String, groups : List<ExerciseSetGroup>) : Template
+    }
+    class SaveTemplateInputData {
+        - draft : WorkoutTemplateDraft
+        + getDraft() : WorkoutTemplateDraft
+    }
+    class SaveTemplateOutputData {
+        - templateId : int
+        - templateName : String
+        + getTemplateId() : int
+        + getTemplateName() : String
+    }
+}
+!$showSaved = 1
+!$showDraft = 1
+!include shared/template-models.iuml
+
+TemplateEditorView --> SaveTemplateController : hands off draft on Save
+TemplateEditorView --> TemplateEditorViewModel : observes
+SaveTemplateController --> SaveTemplateInputBoundary : calls
+SaveTemplatePresenter --> TemplateEditorViewModel : updates
+SaveTemplatePresenter ..|> SaveTemplateOutputBoundary
+JsonWorkoutTemplateRepository ..|> WorkoutTemplateWriter
+SaveTemplateInputBoundary ..> SaveTemplateInputData
+SaveTemplateInteractor ..|> SaveTemplateInputBoundary
+SaveTemplateInteractor --> SaveTemplateOutputBoundary : reports result
+SaveTemplateInteractor --> WorkoutTemplateWriter : creates and saves through
+SaveTemplateInteractor ..> ExerciseSetGroup : validates and builds
+SaveTemplateOutputBoundary ..> SaveTemplateOutputData
+SaveTemplateInputData --> WorkoutTemplateDraft : draft snapshot
+WorkoutTemplateWriter ..> Template : returns saved template
+note right of WorkoutTemplateWriter
+    Storage allocates an integer ID and writes JSON
+    before returning the new Template.
+    ID allocation and write must be coordinated.
+    A failed write reports failure, never success.
+end note
+@enduml
