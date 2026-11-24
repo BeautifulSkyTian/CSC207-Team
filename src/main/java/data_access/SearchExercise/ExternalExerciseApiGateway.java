@@ -13,7 +13,9 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Gateway responsible for communicating with the external ExerciseDB V1 API
@@ -24,6 +26,7 @@ public class ExternalExerciseApiGateway {
     private static final String DEFAULT_BASE_URL = "https://oss.exercisedb.dev/api/v1";
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(10);
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(15);
+    private static final int MAX_PAGES = 200;
 
     private final String baseUrl;
     private final HttpClient httpClient;
@@ -50,28 +53,57 @@ public class ExternalExerciseApiGateway {
     }
 
     /**
-     * Fetches all exercises from the external API.
+     * Fetches all exercises from the external API, following cursor pagination
+     * while {@code meta.hasNextPage} is true.
      *
-     * @return a list of {@link Exercise} entities returned by the API
-     * @throws RuntimeException if the network request fails or returns an error status
+     * @return combined list of {@link Exercise} entities across all pages
+     * @throws RuntimeException if a request fails, returns an error status,
+     *                          or returns an unexpected response shape
      */
     public List<Exercise> fetchAllExercises() {
-        String responseBody = sendGetRequest("/exercises");
-        try {
-            JsonNode root = objectMapper.readTree(responseBody);
-            JsonNode items = root.isArray() ? root : root.path("data");
-            if (items == null || !items.isArray()) {
-                return Collections.emptyList();
+        List<Exercise> allExercises = new ArrayList<>();
+        Set<String> visitedCursors = new HashSet<>();
+        String cursor = null;
+        int pageCount = 0;
+
+        while (true) {
+            pageCount++;
+            if (pageCount > MAX_PAGES) {
+                throw new RuntimeException("Exceeded maximum pagination pages (" + MAX_PAGES + ").");
             }
 
-            List<Exercise> exercises = new ArrayList<>();
-            for (JsonNode item : items) {
-                exercises.add(mapToExercise(item));
+            String path = buildExercisesPath(cursor);
+            String responseBody = sendGetRequest(path, false);
+
+            try {
+                JsonNode root = objectMapper.readTree(responseBody);
+                JsonNode items = extractItemsArray(root);
+
+                for (JsonNode item : items) {
+                    allExercises.add(mapToExercise(item));
+                }
+
+                JsonNode meta = root.path("meta");
+                boolean hasNextPage = meta.path("hasNextPage").asBoolean(false);
+                if (!hasNextPage) {
+                    break;
+                }
+
+                String nextCursor = extractNextCursor(root, meta);
+                if (nextCursor == null || nextCursor.isBlank()) {
+                    throw new RuntimeException(
+                            "API reported hasNextPage=true but provided no nextCursor.");
+                }
+                if (!visitedCursors.add(nextCursor)) {
+                    throw new RuntimeException("Detected repeated pagination cursor: " + nextCursor);
+                }
+                cursor = nextCursor;
+            } catch (IOException ex) {
+                throw new RuntimeException("Failed to parse exercises list from API response.", ex);
             }
-            return exercises;
-        } catch (IOException ex) {
-            throw new RuntimeException("Failed to parse exercises list from API response.", ex);
         }
+
+        return allExercises;
     }
 
     /**
@@ -83,7 +115,10 @@ public class ExternalExerciseApiGateway {
      */
     public Exercise fetchExerciseById(String exerciseId) {
         String encodedId = URLEncoder.encode(exerciseId, StandardCharsets.UTF_8);
-        String responseBody = sendGetRequest("/exercises/" + encodedId);
+        String responseBody = sendGetRequest("/exercises/" + encodedId, true);
+        if ("null".equals(responseBody)) {
+            return null;
+        }
         try {
             JsonNode root = objectMapper.readTree(responseBody);
             JsonNode exerciseNode = root.has("data") && !root.get("data").isNull()
@@ -98,7 +133,33 @@ public class ExternalExerciseApiGateway {
         }
     }
 
-    private String sendGetRequest(String path) {
+    private String buildExercisesPath(String cursor) {
+        if (cursor == null || cursor.isBlank()) {
+            return "/exercises";
+        }
+        String encodedCursor = URLEncoder.encode(cursor, StandardCharsets.UTF_8);
+        return "/exercises?after=" + encodedCursor;
+    }
+
+    private JsonNode extractItemsArray(JsonNode root) {
+        if (root != null && root.isArray()) {
+            return root;
+        }
+        if (root != null && root.has("data") && root.get("data").isArray()) {
+            return root.get("data");
+        }
+        throw new RuntimeException("Unexpected exercises list response shape from API.");
+    }
+
+    private String extractNextCursor(JsonNode root, JsonNode meta) {
+        String metaCursor = meta.path("nextCursor").asText("");
+        if (!metaCursor.isBlank()) {
+            return metaCursor;
+        }
+        return root.path("nextCursor").asText("");
+    }
+
+    private String sendGetRequest(String path, boolean allowNotFoundAsNull) {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl + path))
                 .timeout(REQUEST_TIMEOUT)
@@ -111,7 +172,7 @@ public class ExternalExerciseApiGateway {
                     request, HttpResponse.BodyHandlers.ofString());
 
             int status = response.statusCode();
-            if (status == 404) {
+            if (status == 404 && allowNotFoundAsNull) {
                 return "null";
             }
             if (status == 429) {
