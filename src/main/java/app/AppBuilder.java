@@ -1,12 +1,28 @@
 package app;
 
+import data_access.JsonTemplateDataAccessObject;
+import data_access.SearchExercise.ExternalExerciseApiGateway;
+import data_access.SearchExercise.SearchExerciseDataAccessObject;
 import interface_adapter.ViewManagerModel;
+import interface_adapter.create_template.TemplateEditorState;
+import interface_adapter.create_template.TemplateEditorViewModel;
+import interface_adapter.edit_template_draft.EditTemplateDraftController;
+import interface_adapter.edit_template_draft.EditTemplateDraftPresenter;
 import interface_adapter.export_template.ExportTemplateController;
+import interface_adapter.home.HomeState;
 import interface_adapter.home.HomeViewModel;
 import interface_adapter.import_template.ImportTemplateController;
 import interface_adapter.load_templates.LoadTemplatesController;
+import interface_adapter.load_templates.LoadTemplatesPresenter;
+import interface_adapter.save_template.SaveTemplateController;
+import interface_adapter.save_template.SaveTemplatePresenter;
 import interface_adapter.start_workout.StartWorkoutController;
 import interface_adapter.view_history.ViewHistoryController;
+import use_case.TemplateDataAccessInterface;
+import use_case.edit_template_draft.EditTemplateDraftInteractor;
+import use_case.load_templates.LoadTemplatesInteractor;
+import use_case.save_template.SaveTemplateInteractor;
+import view.CreateTemplateView;
 import view.HomeView;
 import view.ViewManager;
 
@@ -38,6 +54,8 @@ public class AppBuilder {
     private final CardLayout cardLayout = new CardLayout();
     private final JPanel cardPanel = new JPanel(cardLayout);
     private final ViewManagerModel viewManagerModel = new ViewManagerModel();
+    private final TemplateEditorViewModel templateEditorViewModel = new TemplateEditorViewModel();
+    private final TemplateDataAccessInterface templates = new JsonTemplateDataAccessObject();
 
     private HomeViewModel homeViewModel;
     private HomeView homeView;
@@ -65,8 +83,41 @@ public class AppBuilder {
      * @return this builder
      */
     public AppBuilder addLoadTemplatesUseCase() {
-        // TODO: create the presenter and interactor and pass the interactor to the controller.
-        homeView.setLoadTemplatesController(new LoadTemplatesController());
+        LoadTemplatesPresenter presenter =
+                new LoadTemplatesPresenter(homeViewModel, templateEditorViewModel, viewManagerModel);
+        LoadTemplatesInteractor interactor = new LoadTemplatesInteractor(templates, presenter);
+        homeView.setLoadTemplatesController(new LoadTemplatesController(interactor));
+        return this;
+    }
+
+    /** Adds the shared template editor and wires it to the home screen. */
+    public AppBuilder addTemplateEditor() {
+        EditTemplateDraftPresenter editPresenter = new EditTemplateDraftPresenter(templateEditorViewModel);
+        EditTemplateDraftController editController = new EditTemplateDraftController(
+                new EditTemplateDraftInteractor(editPresenter), templateEditorViewModel);
+        SaveTemplatePresenter savePresenter = new SaveTemplatePresenter(templateEditorViewModel);
+        SaveTemplateController saveController = new SaveTemplateController(
+                new SaveTemplateInteractor(templates, savePresenter), templateEditorViewModel);
+        CreateTemplateView editor = new CreateTemplateView(
+                templateEditorViewModel, editController, saveController,
+                () -> new SearchExerciseDataAccessObject(new ExternalExerciseApiGateway()).fetchAllExercises(),
+                () -> showView(homeView.getViewName()));
+        cardPanel.add(editor, editor.getViewName());
+
+        homeView.setAddTemplateAction(() -> {
+            templateEditorViewModel.startNewDraft();
+            showView(editor.getViewName());
+        });
+        templateEditorViewModel.addPropertyChangeListener(event -> {
+            TemplateEditorState state = (TemplateEditorState) event.getNewValue();
+            if (state.getMessage() != null) {
+                HomeState homeState = homeViewModel.getState();
+                homeState.setSelectedTemplateName(state.getDraft().getTemplateName());
+                homeState.setMessage(state.getMessage());
+                homeView.loadTemplates();
+                showView(homeView.getViewName());
+            }
+        });
         return this;
     }
 
@@ -127,10 +178,14 @@ public class AppBuilder {
         frame.pack();
         frame.setLocationRelativeTo(null);
 
-        viewManagerModel.setState(homeView.getViewName());
-        viewManagerModel.firePropertyChange();
+        showView(homeView.getViewName());
         homeView.loadTemplates();
 
         return frame;
+    }
+
+    private void showView(String name) {
+        viewManagerModel.setState(name);
+        viewManagerModel.firePropertyChange();
     }
 }

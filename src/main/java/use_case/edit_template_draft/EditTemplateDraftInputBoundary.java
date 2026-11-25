@@ -11,6 +11,8 @@ public interface EditTemplateDraftInputBoundary {
 
     void addExercise(WorkoutTemplateDraft draft, Exercise exercise, MeasurementType measurementType);
 
+    void changeMeasurementType(WorkoutTemplateDraft draft, UUID rowId, MeasurementType measurementType);
+
     void removeExercise(WorkoutTemplateDraft draft, UUID rowId);
 
     void addSet(WorkoutTemplateDraft draft, UUID rowId);
