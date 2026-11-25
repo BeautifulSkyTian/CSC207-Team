@@ -10,6 +10,12 @@ import java.util.List;
 public interface SearchExerciseDataAccessInterface {
 
     /**
+     * Searches exercises matching any provided active filters.
+     * Blank or null parameters are omitted from the query string.
+     */
+    List<Exercise> searchExercises(String name, String bodyPart, String targetMuscle, String equipment);
+
+    /**
      * Retrieves all available exercises from the underlying data source.
      * Returns summary Exercise objects (without VideoURL or instructions).
      *
