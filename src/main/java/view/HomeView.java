@@ -10,17 +10,23 @@ import interface_adapter.view_history.ViewHistoryController;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
+import java.awt.GridLayout;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.io.File;
+import java.util.Locale;
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
 import javax.swing.ButtonGroup;
 import javax.swing.JButton;
 import javax.swing.JFileChooser;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
@@ -41,7 +47,7 @@ public class HomeView extends JPanel implements PropertyChangeListener {
     private final JButton historyButton = new JButton(HomeViewModel.HISTORY_BUTTON_LABEL);
     private final JButton importButton = new JButton(HomeViewModel.IMPORT_BUTTON_LABEL);
     private final JButton exportButton = new JButton(HomeViewModel.EXPORT_BUTTON_LABEL);
-    private final JLabel statusLabel = new JLabel(" ");
+    private final WrappingText statusLabel = new WrappingText("");
 
     private LoadTemplatesController loadTemplatesController;
     private StartWorkoutController startWorkoutController;
@@ -70,11 +76,11 @@ public class HomeView extends JPanel implements PropertyChangeListener {
         add(header, BorderLayout.NORTH);
 
         templateRows.setLayout(new BoxLayout(templateRows, BoxLayout.Y_AXIS));
-        JPanel templateList = new JPanel(new BorderLayout());
-        templateList.add(templateRows, BorderLayout.NORTH);
-        add(new JScrollPane(templateList), BorderLayout.CENTER);
+        add(new JScrollPane(new VerticalScrollPanel(templateRows),
+                JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER),
+                BorderLayout.CENTER);
 
-        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 0));
+        JPanel buttons = new JPanel(new GridLayout(2, 2, 8, 6));
         buttons.add(startWorkoutButton);
         buttons.add(historyButton);
         buttons.add(importButton);
@@ -133,13 +139,35 @@ public class HomeView extends JPanel implements PropertyChangeListener {
             return;
         }
         JFileChooser chooser = createJsonFileChooser();
-        chooser.setSelectedFile(new File(selected + "." + JSON_EXTENSION));
-        if (chooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
-            String path = chooser.getSelectedFile().getPath();
-            if (!path.toLowerCase().endsWith("." + JSON_EXTENSION)) {
-                path += "." + JSON_EXTENSION;
-            }
-            exportTemplateController.execute(selected, path);
+        String suggestedName = selected.replaceAll("[<>:\"/\\\\|?*\\p{Cntrl}]", "_");
+        chooser.setSelectedFile(new File(withJsonExtension(suggestedName)));
+        if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) {
+            return;
+        }
+
+        File destination = new File(withJsonExtension(chooser.getSelectedFile().getAbsolutePath()));
+        if (destination.isFile() && JOptionPane.showConfirmDialog(this, "Replace the existing file?",
+                "Export Template", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE) != JOptionPane.YES_OPTION) {
+            return;
+        }
+        exportTemplateController.execute(selected, destination.getPath());
+    }
+
+    private static String withJsonExtension(String name) {
+        String extension = "." + JSON_EXTENSION;
+        return name.toLowerCase(Locale.ROOT).endsWith(extension) ? name : name + extension;
+    }
+
+    private void onDeleteTemplate(String name) {
+        JScrollPane namePreview = new JScrollPane(new WrappingText(name),
+                JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        namePreview.setPreferredSize(new Dimension(320, 60));
+        Object[] message = {"Delete this workout template?", namePreview};
+        Object[] options = {"Delete", "Cancel"};
+        int choice = JOptionPane.showOptionDialog(this, message, "Delete Template",
+                JOptionPane.DEFAULT_OPTION, JOptionPane.WARNING_MESSAGE, null, options, options[1]);
+        if (choice == 0) {
+            loadTemplatesController.deleteTemplate(name);
         }
     }
 
@@ -159,7 +187,7 @@ public class HomeView extends JPanel implements PropertyChangeListener {
             statusLabel.setForeground(getForeground());
             statusLabel.setText(state.getMessage());
         } else {
-            statusLabel.setText(" ");
+            statusLabel.setText("");
         }
 
         updateButtons();
@@ -172,10 +200,19 @@ public class HomeView extends JPanel implements PropertyChangeListener {
         for (String name : state.getTemplateNames()) {
             boolean selected = name.equals(state.getSelectedTemplateName());
             hasSelection |= selected;
-            JRadioButton templateButton = new JRadioButton(name, selected);
+            JRadioButton templateButton = new JRadioButton();
+            templateButton.setSelected(selected);
+            templateButton.getAccessibleContext().setAccessibleName(name);
             selection.add(templateButton);
             templateButton.addActionListener(event -> onTemplateSelected(name));
 
+            WrappingText templateName = new WrappingText(name);
+            templateName.addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseClicked(MouseEvent event) {
+                    templateButton.doClick(0);
+                }
+            });
             JButton editButton = new JButton("Edit");
             editButton.getAccessibleContext().setAccessibleName("Edit " + name);
             editButton.addActionListener(event -> {
@@ -183,10 +220,18 @@ public class HomeView extends JPanel implements PropertyChangeListener {
                 onTemplateSelected(name);
                 loadTemplatesController.openTemplate(name);
             });
+            JButton deleteButton = new JButton("Delete");
+            deleteButton.getAccessibleContext().setAccessibleName("Delete " + name);
+            deleteButton.addActionListener(event -> onDeleteTemplate(name));
+
+            JPanel actions = new JPanel(new FlowLayout(FlowLayout.TRAILING, 6, 0));
+            actions.add(editButton);
+            actions.add(deleteButton);
             JPanel row = new JPanel(new BorderLayout(8, 0));
             row.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
-            row.add(templateButton, BorderLayout.CENTER);
-            row.add(editButton, BorderLayout.EAST);
+            row.add(templateButton, BorderLayout.WEST);
+            row.add(templateName, BorderLayout.CENTER);
+            row.add(actions, BorderLayout.EAST);
             templateRows.add(row);
         }
         if (!hasSelection) {

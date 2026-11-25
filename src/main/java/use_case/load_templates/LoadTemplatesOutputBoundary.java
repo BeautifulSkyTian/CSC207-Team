@@ -8,5 +8,7 @@ public interface LoadTemplatesOutputBoundary {
 
     void presentTemplate(Template template);
 
+    void presentDeletion(LoadTemplatesOutputData data);
+
     void presentFailure(String message);
 }

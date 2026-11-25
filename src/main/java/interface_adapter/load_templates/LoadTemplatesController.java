@@ -21,4 +21,9 @@ public class LoadTemplatesController {
     public void openTemplate(String name) {
         interactor.openTemplate(name);
     }
+
+    /** Deletes the template the user chose on the home screen. */
+    public void deleteTemplate(String name) {
+        interactor.deleteTemplate(name);
+    }
 }

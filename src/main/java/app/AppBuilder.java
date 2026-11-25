@@ -9,9 +9,11 @@ import interface_adapter.create_template.TemplateEditorViewModel;
 import interface_adapter.edit_template_draft.EditTemplateDraftController;
 import interface_adapter.edit_template_draft.EditTemplateDraftPresenter;
 import interface_adapter.export_template.ExportTemplateController;
+import interface_adapter.export_template.ExportTemplatePresenter;
 import interface_adapter.home.HomeState;
 import interface_adapter.home.HomeViewModel;
 import interface_adapter.import_template.ImportTemplateController;
+import interface_adapter.import_template.ImportTemplatePresenter;
 import interface_adapter.load_templates.LoadTemplatesController;
 import interface_adapter.load_templates.LoadTemplatesPresenter;
 import interface_adapter.save_template.SaveTemplateController;
@@ -20,6 +22,8 @@ import interface_adapter.start_workout.StartWorkoutController;
 import interface_adapter.view_history.ViewHistoryController;
 import use_case.TemplateDataAccessInterface;
 import use_case.edit_template_draft.EditTemplateDraftInteractor;
+import use_case.export_template.ExportTemplateInteractor;
+import use_case.import_template.ImportTemplateInteractor;
 import use_case.load_templates.LoadTemplatesInteractor;
 import use_case.save_template.SaveTemplateInteractor;
 import view.CreateTemplateView;
@@ -149,8 +153,9 @@ public class AppBuilder {
      * @return this builder
      */
     public AppBuilder addImportTemplateUseCase() {
-        // TODO: create the presenter and interactor and pass the interactor to the controller.
-        homeView.setImportTemplateController(new ImportTemplateController());
+        ImportTemplatePresenter presenter = new ImportTemplatePresenter(homeViewModel);
+        ImportTemplateInteractor interactor = new ImportTemplateInteractor(templates, presenter);
+        homeView.setImportTemplateController(new ImportTemplateController(interactor));
         return this;
     }
 
@@ -160,8 +165,9 @@ public class AppBuilder {
      * @return this builder
      */
     public AppBuilder addExportTemplateUseCase() {
-        // TODO: create the presenter and interactor and pass the interactor to the controller.
-        homeView.setExportTemplateController(new ExportTemplateController());
+        ExportTemplatePresenter presenter = new ExportTemplatePresenter(homeViewModel);
+        ExportTemplateInteractor interactor = new ExportTemplateInteractor(templates, presenter);
+        homeView.setExportTemplateController(new ExportTemplateController(interactor));
         return this;
     }
 

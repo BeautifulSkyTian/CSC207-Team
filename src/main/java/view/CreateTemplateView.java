@@ -12,9 +12,9 @@ import use_case.edit_template_draft.WorkoutTemplateDraft;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
-import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
+import java.awt.GridLayout;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -24,11 +24,11 @@ import javax.swing.BoxLayout;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
+import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
-import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 
@@ -44,7 +44,7 @@ public class CreateTemplateView extends JPanel {
     private final JTextField templateName = new JTextField();
     private final JPanel exercises = new JPanel();
     private final JScrollPane exerciseScroll;
-    private final JTextArea status = new JTextArea(2, 1);
+    private final WrappingText status = new WrappingText("");
     private boolean updatingText;
     private WorkoutTemplateDraft displayedDraft;
 
@@ -61,10 +61,8 @@ public class CreateTemplateView extends JPanel {
         add(createHeader(), BorderLayout.NORTH);
 
         exercises.setLayout(new BoxLayout(exercises, BoxLayout.Y_AXIS));
-        JPanel scrollContent = new JPanel(new BorderLayout());
-        scrollContent.add(exercises, BorderLayout.NORTH);
-        exerciseScroll = new JScrollPane(scrollContent);
-        exerciseScroll.setPreferredSize(new Dimension(420, 350));
+        exerciseScroll = new JScrollPane(new VerticalScrollPanel(exercises),
+                JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
         add(exerciseScroll, BorderLayout.CENTER);
         add(createFooter(saveController, cancel), BorderLayout.SOUTH);
 
@@ -101,16 +99,13 @@ public class CreateTemplateView extends JPanel {
         JButton save = new JButton("Save Template");
         save.addActionListener(event -> saveController.execute());
 
-        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
-        buttons.add(addExercise);
-        buttons.add(cancelButton);
-        buttons.add(save);
-        status.setEditable(false);
-        status.setFocusable(false);
-        status.setOpaque(false);
+        JPanel saveActions = new JPanel(new FlowLayout(FlowLayout.TRAILING, 8, 0));
+        saveActions.add(cancelButton);
+        saveActions.add(save);
+        JPanel buttons = new JPanel(new BorderLayout(8, 0));
+        buttons.add(addExercise, BorderLayout.WEST);
+        buttons.add(saveActions, BorderLayout.EAST);
         status.setForeground(ERROR_COLOR);
-        status.setLineWrap(true);
-        status.setWrapStyleWord(true);
         status.getAccessibleContext().setAccessibleName("Template editor status");
 
         JPanel footer = new JPanel(new BorderLayout(0, 8));
@@ -140,7 +135,7 @@ public class CreateTemplateView extends JPanel {
             exercises.add(Box.createVerticalStrut(8));
         }
         if (draft.getGroups().isEmpty()) {
-            JLabel empty = new JLabel("Add an exercise to start this template.");
+            WrappingText empty = new WrappingText("Add an exercise to start this template.");
             empty.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
             exercises.add(empty);
         }
@@ -152,25 +147,34 @@ public class CreateTemplateView extends JPanel {
         UUID rowId = group.getRowId();
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBorder(BorderFactory.createTitledBorder(group.getExercise().getName()));
+        panel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createEtchedBorder(), BorderFactory.createEmptyBorder(8, 10, 8, 10)));
+
+        WrappingText exerciseName = new WrappingText(group.getExercise().getName());
+        exerciseName.setFont(exerciseName.getFont().deriveFont(Font.BOLD));
+        JPanel heading = new JPanel(new BorderLayout());
+        heading.add(exerciseName, BorderLayout.CENTER);
+        panel.add(heading);
 
         JComboBox<MeasurementType> measurement = new JComboBox<>(MeasurementType.values());
         DefaultListCellRenderer renderer = new DefaultListCellRenderer();
         measurement.setRenderer((list, value, index, selected, focused) ->
                 renderer.getListCellRendererComponent(list,
-                        value == MeasurementType.WEIGHT_REPS ? "Weight and reps" : "Duration and distance",
+                        value == MeasurementType.WEIGHT_REPS ? "Weight and reps" : "Time and distance",
                         index, selected, focused));
         measurement.setSelectedItem(group.getMeasurementType());
-        measurement.getAccessibleContext().setAccessibleName("Measurement type");
         measurement.addActionListener(event -> {
             MeasurementType type = (MeasurementType) measurement.getSelectedItem();
             editController.changeMeasurementType(rowId, type);
         });
         JButton removeExercise = new JButton("Remove Exercise");
         removeExercise.addActionListener(event -> editController.removeExercise(rowId));
-        JPanel controls = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        controls.add(measurement);
-        controls.add(removeExercise);
+        JPanel controls = new JPanel(new BorderLayout(8, 0));
+        controls.setBorder(BorderFactory.createEmptyBorder(6, 0, 4, 0));
+        controls.add(labeledField("Measurements", measurement), BorderLayout.CENTER);
+        JPanel removeAction = new JPanel(new BorderLayout());
+        removeAction.add(removeExercise, BorderLayout.SOUTH);
+        controls.add(removeAction, BorderLayout.EAST);
         panel.add(controls);
 
         for (int index = 0; index < group.getSetCount(); index++) {
@@ -198,22 +202,30 @@ public class CreateTemplateView extends JPanel {
         first.getDocument().addDocumentListener(listener);
         second.getDocument().addDocumentListener(listener);
 
-        JLabel firstLabel = new JLabel(weighted ? "Weight" : "Duration");
-        firstLabel.setLabelFor(first);
-        JLabel secondLabel = new JLabel(weighted ? "Reps" : "Distance");
-        secondLabel.setLabelFor(second);
         JButton remove = new JButton("Remove");
         remove.getAccessibleContext().setAccessibleName("Remove set " + (index + 1));
         remove.addActionListener(event -> editController.removeSet(group.getRowId(), index));
 
-        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        row.add(new JLabel("Set " + (index + 1)));
-        row.add(firstLabel);
-        row.add(first);
-        row.add(secondLabel);
-        row.add(second);
-        row.add(remove);
+        JPanel fields = new JPanel(new GridLayout(1, 2, 8, 0));
+        fields.add(labeledField(weighted ? "Weight" : "Time", first));
+        fields.add(labeledField(weighted ? "Reps" : "Distance", second));
+        JPanel removeAction = new JPanel(new BorderLayout());
+        removeAction.add(remove, BorderLayout.SOUTH);
+        JPanel row = new JPanel(new BorderLayout(8, 0));
+        row.setBorder(BorderFactory.createEmptyBorder(4, 0, 4, 0));
+        row.add(new JLabel("Set " + (index + 1)), BorderLayout.WEST);
+        row.add(fields, BorderLayout.CENTER);
+        row.add(removeAction, BorderLayout.EAST);
         return row;
+    }
+
+    private static JPanel labeledField(String text, JComponent field) {
+        JLabel label = new JLabel(text);
+        label.setLabelFor(field);
+        JPanel panel = new JPanel(new BorderLayout(0, 2));
+        panel.add(label, BorderLayout.NORTH);
+        panel.add(field, BorderLayout.CENTER);
+        return panel;
     }
 
     private void addExercise() {

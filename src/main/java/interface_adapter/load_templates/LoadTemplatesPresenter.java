@@ -36,6 +36,12 @@ public class LoadTemplatesPresenter implements LoadTemplatesOutputBoundary {
     }
 
     @Override
+    public void presentDeletion(LoadTemplatesOutputData data) {
+        home.getState().setMessage("Template deleted.");
+        presentTemplates(data);
+    }
+
+    @Override
     public void presentFailure(String message) {
         HomeState state = home.getState();
         state.setMessage(null);

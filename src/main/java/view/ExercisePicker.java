@@ -5,11 +5,11 @@ import entities.FilterCriteria;
 
 import java.awt.BorderLayout;
 import java.awt.Component;
+import java.awt.Dimension;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Supplier;
-import javax.swing.DefaultListCellRenderer;
 import javax.swing.DefaultListModel;
 import javax.swing.JLabel;
 import javax.swing.JList;
@@ -25,7 +25,7 @@ final class ExercisePicker {
     private final Supplier<List<Exercise>> loadCatalog;
     private final JPanel form = new JPanel(new BorderLayout(0, 6));
     private final JTextField name = new JTextField(25);
-    private final JLabel status = new JLabel(" ");
+    private final WrappingText status = new WrappingText("");
     private final DefaultListModel<Exercise> matches = new DefaultListModel<>();
     private final JList<Exercise> results = new JList<>(matches);
 
@@ -42,12 +42,21 @@ final class ExercisePicker {
         search.add(name, BorderLayout.CENTER);
         form.add(search, BorderLayout.NORTH);
         results.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        results.setVisibleRowCount(7);
-        DefaultListCellRenderer renderer = new DefaultListCellRenderer();
-        results.setCellRenderer((list, exercise, index, selected, focused) ->
-                renderer.getListCellRendererComponent(
-                        list, exercise.getName(), index, selected, focused));
-        form.add(new JScrollPane(results), BorderLayout.CENTER);
+        WrappingText renderer = new WrappingText("");
+        renderer.setOpaque(true);
+        results.setCellRenderer((list, exercise, index, selected, focused) -> {
+            renderer.setText(exercise.getName());
+            renderer.setForeground(selected ? list.getSelectionForeground() : list.getForeground());
+            renderer.setBackground(selected ? list.getSelectionBackground() : list.getBackground());
+            // The dialog is packed before the list receives its viewport width.
+            int width = list.getWidth() > 0 ? list.getWidth() : 340;
+            renderer.setSize(width, 1);
+            return renderer;
+        });
+        JScrollPane scroll = new JScrollPane(results,
+                JScrollPane.VERTICAL_SCROLLBAR_ALWAYS, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        scroll.setPreferredSize(new Dimension(370, 170));
+        form.add(scroll, BorderLayout.CENTER);
         form.add(status, BorderLayout.SOUTH);
         name.getDocument().addDocumentListener((TextChangeListener) this::filterCatalog);
     }
