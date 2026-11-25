@@ -9,22 +9,10 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
+import java.net.URI;
 import java.util.List;
 import java.util.Objects;
-import javax.swing.BorderFactory;
-import javax.swing.DefaultListCellRenderer;
-import javax.swing.DefaultListModel;
-import javax.swing.JButton;
-import javax.swing.JComboBox;
-import javax.swing.JDialog;
-import javax.swing.JLabel;
-import javax.swing.JList;
-import javax.swing.JPanel;
-import javax.swing.JScrollPane;
-import javax.swing.JTextArea;
-import javax.swing.JTextField;
-import javax.swing.ListSelectionModel;
-import javax.swing.SwingUtilities;
+import javax.swing.*;
 
 /**
  * Swing view for searching and filtering exercises, displaying a scrollable list
@@ -46,6 +34,15 @@ public class SearchExerciseView extends JPanel implements PropertyChangeListener
     private final DefaultListModel<Exercise> resultsListModel;
     private final JList<Exercise> resultsList;
 
+    /**
+     * Constructs a {@code SearchExerciseView} and binds it to the given controller and view model.
+     *
+     * @param controller          the controller handling search and detail requests
+     * @param viewModel           the observable view model storing displayed and selected exercises
+     * @param bodyPartOptions     initial options for the body part filter dropdown
+     * @param targetMuscleOptions initial options for the target muscle filter dropdown
+     * @param equipmentOptions    initial options for the equipment filter dropdown
+     */
     public SearchExerciseView(SearchExerciseController controller,
                               SearchExerciseViewModel viewModel,
                               List<String> bodyPartOptions,
@@ -69,6 +66,12 @@ public class SearchExerciseView extends JPanel implements PropertyChangeListener
         initListeners();
     }
 
+    /**
+     * Builds a dropdown option array prepended with {@value #ALL_OPTION}.
+     *
+     * @param options raw option values from data/setup
+     * @return non-empty array of dropdown items starting with {@value #ALL_OPTION}
+     */
     private String[] buildOptionsArray(List<String> options) {
         if (options == null || options.isEmpty()) {
             return new String[]{ALL_OPTION};
@@ -81,6 +84,9 @@ public class SearchExerciseView extends JPanel implements PropertyChangeListener
         return arr;
     }
 
+    /**
+     * Initializes the Swing layout for filter controls, results list, and status bar.
+     */
     private void initLayout() {
         setLayout(new BorderLayout(10, 10));
         setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
@@ -141,11 +147,14 @@ public class SearchExerciseView extends JPanel implements PropertyChangeListener
         add(statusLabel, BorderLayout.SOUTH);
     }
 
+    /**
+     * Registers action and mouse listeners for search triggers and row selection.
+     */
     private void initListeners() {
         searchButton.addActionListener(e -> triggerSearch());
         nameSearchField.addActionListener(e -> triggerSearch());
 
-        // Single click on a row requests full exercise details via the controller
+        // Single click on a row requests full exercise details asynchronously via the controller
         resultsList.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
@@ -157,8 +166,7 @@ public class SearchExerciseView extends JPanel implements PropertyChangeListener
                         resultsList.setSelectedIndex(index);
                         Exercise clicked = resultsListModel.getElementAt(index);
                         if (clicked != null && clicked.getId() != null) {
-                            statusLabel.setText("Loading exercise details...");
-                            controller.selectExercise(clicked.getId());
+                            requestExerciseDetails(clicked.getId());
                         }
                     } else {
                         resultsList.clearSelection();
@@ -168,16 +176,56 @@ public class SearchExerciseView extends JPanel implements PropertyChangeListener
         });
     }
 
+    /**
+     * Normalizes current filter inputs and runs a search off the Swing Event Dispatch Thread.
+     */
     private void triggerSearch() {
         String nameQuery = normalizeFilterValue(nameSearchField.getText());
         String bodyPart = normalizeFilterValue((String) bodyPartComboBox.getSelectedItem());
         String targetMuscle = normalizeFilterValue((String) targetMuscleComboBox.getSelectedItem());
         String equipment = normalizeFilterValue((String) equipmentComboBox.getSelectedItem());
 
+        setSearchControlsEnabled(false);
         statusLabel.setText("Searching...");
-        controller.search(nameQuery, bodyPart, targetMuscle, equipment);
+
+        new SwingWorker<Void, Void>() {
+            @Override
+            protected Void doInBackground() {
+                controller.search(nameQuery, bodyPart, targetMuscle, equipment);
+                return null;
+            }
+
+            @Override
+            protected void done() {
+                setSearchControlsEnabled(true);
+                try {
+                    get(); // surfaces any unexpected exception thrown in doInBackground
+                } catch (Exception ex) {
+                    statusLabel.setText("Error: " + ex.getMessage());
+                }
+            }
+        }.execute();
     }
 
+    /**
+     * Enables or disables search inputs and button while a search request is running.
+     *
+     * @param enabled {@code true} to enable search controls, {@code false} to disable them
+     */
+    private void setSearchControlsEnabled(boolean enabled) {
+        searchButton.setEnabled(enabled);
+        nameSearchField.setEnabled(enabled);
+        bodyPartComboBox.setEnabled(enabled);
+        targetMuscleComboBox.setEnabled(enabled);
+        equipmentComboBox.setEnabled(enabled);
+    }
+
+    /**
+     * Converts blank or {@value #ALL_OPTION} filter selections to {@code null}.
+     *
+     * @param value raw filter string from a text field or combo box
+     * @return trimmed filter string, or {@code null} when unfiltered
+     */
     private String normalizeFilterValue(String value) {
         if (value == null || value.isBlank() || ALL_OPTION.equalsIgnoreCase(value.trim())) {
             return null;
@@ -185,6 +233,11 @@ public class SearchExerciseView extends JPanel implements PropertyChangeListener
         return value.trim();
     }
 
+    /**
+     * Handles view model property updates on the Swing Event Dispatch Thread.
+     *
+     * @param evt the property change event emitted by {@link SearchExerciseViewModel}
+     */
     @Override
     public void propertyChange(PropertyChangeEvent evt) {
         String propertyName = evt.getPropertyName();
@@ -199,6 +252,11 @@ public class SearchExerciseView extends JPanel implements PropertyChangeListener
         });
     }
 
+    /**
+     * Replaces current list rows with the provided search results and updates the status label.
+     *
+     * @param exercises exercises to display in the list, or {@code null}/empty to clear
+     */
     private void renderResults(List<Exercise> exercises) {
         resultsListModel.clear();
         if (exercises == null || exercises.isEmpty()) {
@@ -211,6 +269,11 @@ public class SearchExerciseView extends JPanel implements PropertyChangeListener
         statusLabel.setText(exercises.size() + " exercise(s) found. Click a row for details.");
     }
 
+    /**
+     * Opens a modal detail dialog showing exercise metadata, preview GIF, and instructions.
+     *
+     * @param exercise the selected exercise whose details should be displayed
+     */
     private void showExerciseDetailDialog(Exercise exercise) {
         if (exercise == null) {
             return;
@@ -220,16 +283,31 @@ public class SearchExerciseView extends JPanel implements PropertyChangeListener
         Frame owner = (Frame) SwingUtilities.getWindowAncestor(this);
         JDialog dialog = new JDialog(owner, exercise.getName(), true);
         dialog.setLayout(new BorderLayout(10, 10));
-        dialog.setSize(480, 400);
+        dialog.setSize(500, 560);
         dialog.setLocationRelativeTo(this);
 
         JPanel content = new JPanel(new BorderLayout(8, 8));
         content.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
 
+        // Top section: Title + animated GIF preview
+        JPanel headerPanel = new JPanel();
+        headerPanel.setLayout(new BoxLayout(headerPanel, BoxLayout.Y_AXIS));
+
         JLabel titleLabel = new JLabel(exercise.getName() != null ? exercise.getName() : "Exercise Details");
         titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 16f));
-        content.add(titleLabel, BorderLayout.NORTH);
+        titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        headerPanel.add(titleLabel);
 
+        JLabel gifLabel = new JLabel();
+        gifLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        gifLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        loadExerciseGif(exercise.getVideoUrl(), gifLabel, dialog);
+        headerPanel.add(Box.createVerticalStrut(8));
+        headerPanel.add(gifLabel);
+
+        content.add(headerPanel, BorderLayout.NORTH);
+
+        // Center section: Metadata + Instructions
         JTextArea detailsArea = new JTextArea();
         detailsArea.setEditable(false);
         detailsArea.setLineWrap(true);
@@ -240,6 +318,7 @@ public class SearchExerciseView extends JPanel implements PropertyChangeListener
         JScrollPane detailScroll = new JScrollPane(detailsArea);
         content.add(detailScroll, BorderLayout.CENTER);
 
+        // Bottom section: Close button
         JPanel bottomBar = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JButton closeButton = new JButton("Close");
         closeButton.addActionListener(e -> dialog.dispose());
@@ -250,6 +329,12 @@ public class SearchExerciseView extends JPanel implements PropertyChangeListener
         dialog.setVisible(true);
     }
 
+    /**
+     * Formats exercise attributes, media URL, and step-by-step instructions into display text.
+     *
+     * @param exercise the exercise to format
+     * @return formatted multi-line summary text
+     */
     private String formatExerciseDetails(Exercise exercise) {
         StringBuilder sb = new StringBuilder();
         sb.append("Body Parts: ").append(joinOrNone(exercise.getBodyParts())).append("\n");
@@ -273,6 +358,12 @@ public class SearchExerciseView extends JPanel implements PropertyChangeListener
         return sb.toString();
     }
 
+    /**
+     * Joins a non-empty string list with commas or returns {@code "None"} when empty/null.
+     *
+     * @param items list of strings to join
+     * @return comma-separated string or {@code "None"}
+     */
     private String joinOrNone(List<String> items) {
         if (items == null || items.isEmpty()) {
             return "None";
@@ -280,6 +371,11 @@ public class SearchExerciseView extends JPanel implements PropertyChangeListener
         return String.join(", ", items);
     }
 
+    /**
+     * Displays an error message in the bottom status label when non-blank.
+     *
+     * @param errorMessage error text to show in the status bar
+     */
     private void renderError(String errorMessage) {
         if (errorMessage == null || errorMessage.isBlank()) {
             return;
@@ -291,6 +387,16 @@ public class SearchExerciseView extends JPanel implements PropertyChangeListener
      * Custom cell renderer formatting each row with the exercise name and summary tags.
      */
     private static class ExerciseRowRenderer extends DefaultListCellRenderer {
+        /**
+         * Renders an {@link Exercise} item as a two-line HTML summary row.
+         *
+         * @param list         the parent list component
+         * @param value        the item being rendered
+         * @param index        the cell index
+         * @param isSelected   whether the cell is selected
+         * @param cellHasFocus whether the cell currently has focus
+         * @return the configured renderer component
+         */
         @Override
         public Component getListCellRendererComponent(JList<?> list,
                                                       Object value,
@@ -315,6 +421,12 @@ public class SearchExerciseView extends JPanel implements PropertyChangeListener
             return this;
         }
 
+        /**
+         * Escapes basic HTML characters so exercise fields render safely inside HTML labels.
+         *
+         * @param text raw string to escape
+         * @return HTML-escaped string
+         */
         private String escapeHtml(String text) {
             if (text == null) {
                 return "";
@@ -323,5 +435,79 @@ public class SearchExerciseView extends JPanel implements PropertyChangeListener
                     .replace("<", "&lt;")
                     .replace(">", "&gt;");
         }
+    }
+
+    /**
+     * Fetches and optionally scales an exercise preview GIF off the EDT, then updates {@code gifLabel}.
+     *
+     * @param videoUrl URL of the preview GIF image
+     * @param gifLabel label receiving the loaded icon or fallback status message
+     * @param dialog   parent dialog revalidated once the image is applied
+     */
+    private void loadExerciseGif(String videoUrl, JLabel gifLabel, JDialog dialog) {
+        if (videoUrl == null || videoUrl.isBlank()) {
+            gifLabel.setText("No preview GIF available.");
+            return;
+        }
+        gifLabel.setText("Loading preview GIF...");
+
+        new SwingWorker<ImageIcon, Void>() {
+            @Override
+            protected ImageIcon doInBackground() throws Exception {
+                ImageIcon icon = new ImageIcon(URI.create(videoUrl).toURL());
+                if (icon.getIconWidth() <= 0) {
+                    return null;
+                }
+                int maxWidth = 220;
+                if (icon.getIconWidth() > maxWidth) {
+                    int scaledHeight = (int) ((double) icon.getIconHeight() * maxWidth / icon.getIconWidth());
+                    Image scaled = icon.getImage().getScaledInstance(maxWidth, scaledHeight, Image.SCALE_DEFAULT);
+                    return new ImageIcon(scaled);
+                }
+                return icon;
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    ImageIcon loaded = get();
+                    if (loaded != null) {
+                        gifLabel.setText(null);
+                        gifLabel.setIcon(loaded);
+                        dialog.revalidate();
+                    } else {
+                        gifLabel.setText("Preview GIF unavailable.");
+                    }
+                } catch (Exception ex) {
+                    gifLabel.setText("Preview GIF unavailable.");
+                }
+            }
+        }.execute();
+    }
+
+    /**
+     * Fetches full details for the selected exercise on a background thread via {@link SwingWorker}.
+     *
+     * @param exerciseId identifier of the exercise selected by the user
+     */
+    private void requestExerciseDetails(String exerciseId) {
+        statusLabel.setText("Loading exercise details...");
+
+        new SwingWorker<Void, Void>() {
+            @Override
+            protected Void doInBackground() {
+                controller.selectExercise(exerciseId);
+                return null;
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    get();
+                } catch (Exception ex) {
+                    statusLabel.setText("Error: " + ex.getMessage());
+                }
+            }
+        }.execute();
     }
 }

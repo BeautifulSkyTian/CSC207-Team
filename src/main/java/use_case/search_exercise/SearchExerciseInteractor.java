@@ -42,13 +42,11 @@ public class SearchExerciseInteractor implements SearchExerciseInputBoundary {
 
             List<Exercise> matchingExercises = dataAccess.searchExercises(
                     name, bodyPart, targetMuscle, equipment);
+            List<Exercise> safeResults = (matchingExercises == null)
+                    ? List.of()
+                    : matchingExercises;
 
-            if (matchingExercises == null || matchingExercises.isEmpty()) {
-                presenter.prepareFailView("No exercises matched your search criteria.");
-                return;
-            }
-
-            SearchExerciseOutputData outputData = new SearchExerciseOutputData(matchingExercises);
+            SearchExerciseOutputData outputData = new SearchExerciseOutputData(safeResults);
             presenter.prepareSuccessView(outputData);
         } catch (RuntimeException e) {
             presenter.prepareFailView("Failed to load exercises: " + e.getMessage());

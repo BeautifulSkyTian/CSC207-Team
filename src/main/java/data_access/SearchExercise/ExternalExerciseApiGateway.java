@@ -204,7 +204,6 @@ public class ExternalExerciseApiGateway implements SearchExerciseDataAccessInter
 
     private List<String> fetchNameList(String path) {
         String responseBody = sendGetRequest(path, false);
-        System.out.println("[" + path + "] raw JSON: " + responseBody);
         try {
             JsonNode root = objectMapper.readTree(responseBody);
             JsonNode items = extractItemsArray(root);
