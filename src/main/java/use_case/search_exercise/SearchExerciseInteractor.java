@@ -4,25 +4,24 @@ import entities.Exercise;
 import entities.FilterCriteria;
 import java.util.List;
 import java.util.Objects;
-import java.util.stream.Collectors;
 
 /**
  * Interactor for the Search Exercises use case.
- * Coordinates fetching summary exercises, filtering them against {@link FilterCriteria},
- * and lazily retrieving full exercise details (video URL and instructions) when selected.
+ * Coordinates querying exercises via active {@link FilterCriteria} query parameters
+ * and lazily retrieving full exercise details when an item is selected.
  */
 public class SearchExerciseInteractor implements SearchExerciseInputBoundary {
     private final SearchExerciseDataAccessInterface dataAccess;
     private final SearchExerciseOutputBoundary presenter;
 
     /**
-     * Constructs a new {@code SearchExercisesInteractor}.
+     * Constructs a new {@code SearchExerciseInteractor}.
      *
-     * @param dataAccess the data access gateway/repository for retrieving exercises
-     * @param presenter  the output boundary for presenting results or errors
+     * @param dataAccess the data access gateway/DAO for retrieving exercises
+     * @param presenter  the output boundary for presenting search results, details, or errors
      */
     public SearchExerciseInteractor(SearchExerciseDataAccessInterface dataAccess,
-                                     SearchExerciseOutputBoundary presenter) {
+                                    SearchExerciseOutputBoundary presenter) {
         this.dataAccess = Objects.requireNonNull(dataAccess, "Data access must not be null");
         this.presenter = Objects.requireNonNull(presenter, "Presenter must not be null");
     }
@@ -36,13 +35,18 @@ public class SearchExerciseInteractor implements SearchExerciseInputBoundary {
 
         try {
             FilterCriteria criteria = inputData.getCriteria();
-            List<Exercise> allExercises = dataAccess.fetchAllExercises();
+            String name = normalizeFilter(criteria.getNameQuery());
+            String bodyPart = normalizeFilter(criteria.getBodyPart());
+            String targetMuscle = normalizeFilter(criteria.getTargetMuscle());
+            String equipment = normalizeFilter(criteria.getEquipment());
 
-            List<Exercise> matchingExercises = allExercises.stream()
-                    .filter(criteria::matches)
-                    .collect(Collectors.toList());
+            List<Exercise> matchingExercises = dataAccess.searchExercises(
+                    name, bodyPart, targetMuscle, equipment);
+            List<Exercise> safeResults = (matchingExercises == null)
+                    ? List.of()
+                    : matchingExercises;
 
-            SearchExerciseOutputData outputData = new SearchExerciseOutputData(matchingExercises);
+            SearchExerciseOutputData outputData = new SearchExerciseOutputData(safeResults);
             presenter.prepareSuccessView(outputData);
         } catch (RuntimeException e) {
             presenter.prepareFailView("Failed to load exercises: " + e.getMessage());
@@ -68,5 +72,16 @@ public class SearchExerciseInteractor implements SearchExerciseInputBoundary {
         } catch (RuntimeException e) {
             presenter.prepareFailView("Failed to load exercise details: " + e.getMessage());
         }
+    }
+
+    private String normalizeFilter(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        if (trimmed.isEmpty() || "All".equalsIgnoreCase(trimmed)) {
+            return null;
+        }
+        return trimmed;
     }
 }

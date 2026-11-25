@@ -3,6 +3,7 @@ package data_access.SearchExercise;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import entities.Exercise;
+import use_case.search_exercise.SearchExerciseDataAccessInterface;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URLEncoder;
@@ -21,12 +22,13 @@ import java.util.Set;
  * Gateway responsible for communicating with the external ExerciseDB V1 API
  * over HTTP and mapping JSON responses into {@link Exercise} entities.
  */
-public class ExternalExerciseApiGateway {
+public class ExternalExerciseApiGateway implements SearchExerciseDataAccessInterface {
 
     private static final String DEFAULT_BASE_URL = "https://oss.exercisedb.dev/api/v1";
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(10);
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(15);
     private static final int MAX_PAGES = 200;
+    private static final int SEARCH_LIMIT = 50;
 
     private final String baseUrl;
     private final HttpClient httpClient;
@@ -53,67 +55,13 @@ public class ExternalExerciseApiGateway {
     }
 
     /**
-     * Fetches all exercises from the external API, following cursor pagination
-     * while {@code meta.hasNextPage} is true.
-     *
-     * @return combined list of {@link Exercise} entities across all pages
-     * @throws RuntimeException if a request fails, returns an error status,
-     *                          or returns an unexpected response shape
-     */
-    public List<Exercise> fetchAllExercises() {
-        List<Exercise> allExercises = new ArrayList<>();
-        Set<String> visitedCursors = new HashSet<>();
-        String cursor = null;
-        int pageCount = 0;
-
-        while (true) {
-            pageCount++;
-            if (pageCount > MAX_PAGES) {
-                throw new RuntimeException("Exceeded maximum pagination pages (" + MAX_PAGES + ").");
-            }
-
-            String path = buildExercisesPath(cursor);
-            String responseBody = sendGetRequest(path, false);
-
-            try {
-                JsonNode root = objectMapper.readTree(responseBody);
-                JsonNode items = extractItemsArray(root);
-
-                for (JsonNode item : items) {
-                    allExercises.add(mapToExercise(item));
-                }
-
-                JsonNode meta = root.path("meta");
-                boolean hasNextPage = meta.path("hasNextPage").asBoolean(false);
-                if (!hasNextPage) {
-                    break;
-                }
-
-                String nextCursor = extractNextCursor(root, meta);
-                if (nextCursor == null || nextCursor.isBlank()) {
-                    throw new RuntimeException(
-                            "API reported hasNextPage=true but provided no nextCursor.");
-                }
-                if (!visitedCursors.add(nextCursor)) {
-                    throw new RuntimeException("Detected repeated pagination cursor: " + nextCursor);
-                }
-                cursor = nextCursor;
-            } catch (IOException ex) {
-                throw new RuntimeException("Failed to parse exercises list from API response.", ex);
-            }
-        }
-
-        return allExercises;
-    }
-
-    /**
      * Fetches a single exercise by its identifier from the external API.
      *
      * @param exerciseId the unique ID of the exercise
      * @return the matching {@link Exercise}, or {@code null} if not found (HTTP 404)
      * @throws RuntimeException if the network request fails or returns an unexpected error status
      */
-    public Exercise fetchExerciseById(String exerciseId) {
+    public Exercise getExerciseById(String exerciseId) {
         String encodedId = URLEncoder.encode(exerciseId, StandardCharsets.UTF_8);
         String responseBody = sendGetRequest("/exercises/" + encodedId, true);
         if ("null".equals(responseBody)) {
@@ -240,5 +188,128 @@ public class ExternalExerciseApiGateway {
             values.add(element.asText(""));
         }
         return values;
+    }
+
+    public List<String> fetchAllMuscles() {
+        return fetchNameList("/muscles");
+    }
+
+    public List<String> fetchAllBodyParts() {
+        return fetchNameList("/bodyparts");
+    }
+
+    public List<String> fetchAllEquipments() {
+        return fetchNameList("/equipments");
+    }
+
+    private List<String> fetchNameList(String path) {
+        String responseBody = sendGetRequest(path, false);
+        try {
+            JsonNode root = objectMapper.readTree(responseBody);
+            JsonNode items = extractItemsArray(root);
+
+            List<String> names = new ArrayList<>();
+            for (JsonNode item : items) {
+                String value = item.isTextual()
+                        ? item.asText("")
+                        : item.path("name").asText("");
+                if (!value.isBlank()) {
+                    names.add(value);
+                }
+            }
+            return names;
+        } catch (IOException ex) {
+            throw new RuntimeException("Failed to parse list from API endpoint: " + path, ex);
+        }
+    }
+
+    @Override
+    public List<Exercise> searchExercises(
+            String name,
+            String bodyPart,
+            String targetMuscle,
+            String equipment) {
+
+        List<Exercise> matchingExercises = new ArrayList<>();
+        Set<String> visitedCursors = new HashSet<>();
+        String cursor = null;
+        int pageCount = 0;
+
+        while (true) {
+            pageCount++;
+            if (pageCount > MAX_PAGES) {
+                throw new RuntimeException("Exceeded maximum pagination pages (" + MAX_PAGES + ").");
+            }
+
+            String path = buildFilteredExercisesPath(name, bodyPart, targetMuscle, equipment, cursor);
+            String responseBody = sendGetRequest(path, false);
+
+            try {
+                JsonNode root = objectMapper.readTree(responseBody);
+                JsonNode items = extractItemsArray(root);
+
+                for (JsonNode item : items) {
+                    matchingExercises.add(mapToExercise(item));
+                }
+
+                if (matchingExercises.size() >= SEARCH_LIMIT) {
+                    break;
+                }
+
+                JsonNode meta = root.path("meta");
+                boolean hasNextPage = meta.path("hasNextPage").asBoolean(false);
+                if (!hasNextPage) {
+                    break;
+                }
+
+                String nextCursor = extractNextCursor(root, meta);
+                if (nextCursor == null || nextCursor.isBlank()) {
+                    throw new RuntimeException(
+                            "API reported hasNextPage=true but provided no nextCursor.");
+                }
+                if (!visitedCursors.add(nextCursor)) {
+                    throw new RuntimeException("Detected repeated pagination cursor: " + nextCursor);
+                }
+                cursor = nextCursor;
+            } catch (IOException ex) {
+                throw new RuntimeException("Failed to parse filtered exercises from API response.", ex);
+            }
+        }
+
+        return matchingExercises;
+    }
+
+    @Override
+    public List<Exercise> fetchAllExercises() {
+        return searchExercises(null, null, null, null);
+    }
+
+    private String buildFilteredExercisesPath(
+            String name,
+            String bodyPart,
+            String targetMuscle,
+            String equipment,
+            String cursor) {
+
+        List<String> params = new ArrayList<>();
+        addQueryParam(params, "limit", String.valueOf(SEARCH_LIMIT));
+        addQueryParam(params, "name", name);
+        addQueryParam(params, "bodyParts", bodyPart);
+        addQueryParam(params, "targetMuscles", targetMuscle);
+        addQueryParam(params, "equipments", equipment);
+        addQueryParam(params, "after", cursor);
+
+        if (params.isEmpty()) {
+            return "/exercises";
+        }
+        return "/exercises?" + String.join("&", params);
+    }
+
+    private void addQueryParam(List<String> params, String key, String value) {
+        if (value != null && !value.isBlank() && !"All".equalsIgnoreCase(value.trim())) {
+            String encodedKey = URLEncoder.encode(key, StandardCharsets.UTF_8);
+            String encodedValue = URLEncoder.encode(value.trim(), StandardCharsets.UTF_8);
+            params.add(encodedKey + "=" + encodedValue);
+        }
     }
 }
