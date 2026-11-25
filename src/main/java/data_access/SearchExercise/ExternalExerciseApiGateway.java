@@ -241,4 +241,37 @@ public class ExternalExerciseApiGateway {
         }
         return values;
     }
+
+    public List<String> fetchAllMuscles() {
+        return fetchNameList("/muscles");
+    }
+
+    public List<String> fetchAllBodyParts() {
+        return fetchNameList("/bodyparts");
+    }
+
+    public List<String> fetchAllEquipments() {
+        return fetchNameList("/equipments");
+    }
+
+    private List<String> fetchNameList(String path) {
+        String responseBody = sendGetRequest(path, false);
+        try {
+            JsonNode root = objectMapper.readTree(responseBody);
+            JsonNode items = extractItemsArray(root);
+
+            List<String> names = new ArrayList<>();
+            for (JsonNode item : items) {
+                String value = item.isTextual()
+                        ? item.asText("")
+                        : item.path("name").asText("");
+                if (!value.isBlank()) {
+                    names.add(value);
+                }
+            }
+            return names;
+        } catch (IOException ex) {
+            throw new RuntimeException("Failed to parse list from API endpoint: " + path, ex);
+        }
+    }
 }
