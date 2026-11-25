@@ -2,6 +2,7 @@ package data_access;
 
 import entities.LogEntry;
 import entities.LogExerciseSet;
+import entities.MeasurementType;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import use_case.LogEntryDataAccessInterface;
@@ -16,6 +17,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.function.BiFunction;
 
 /**
  * Stores log entries in a JSON file. All entries are loaded into memory on
@@ -114,9 +116,13 @@ public class JsonLogEntryDataAccessObject implements LogEntryDataAccessInterface
         JSONArray exercises = new JSONArray();
         for (LogExerciseSet set : entry.getExercises()) {
             JSONObject json = new JSONObject();
+            json.put("exerciseId", set.getExerciseId());
             json.put("exerciseName", set.getExerciseName());
+            json.put("measurementType", set.getMeasurementType().name());
             json.put("weights", new JSONArray(set.getWeights()));
             json.put("reps", new JSONArray(set.getReps()));
+            json.put("times", new JSONArray(set.getTimes()));
+            json.put("distances", new JSONArray(set.getDistances()));
             exercises.put(json);
         }
         JSONObject json = new JSONObject();
@@ -131,21 +137,33 @@ public class JsonLogEntryDataAccessObject implements LogEntryDataAccessInterface
         List<LogExerciseSet> exercises = new ArrayList<>();
         for (int i = 0; i < exercisesJson.length(); i++) {
             JSONObject setJson = exercisesJson.getJSONObject(i);
-            JSONArray weightsJson = setJson.getJSONArray("weights");
-            JSONArray repsJson = setJson.getJSONArray("reps");
-            List<Double> weights = new ArrayList<>();
-            List<Integer> reps = new ArrayList<>();
-            for (int j = 0; j < weightsJson.length(); j++) {
-                weights.add(weightsJson.getDouble(j));
-            }
-            for (int j = 0; j < repsJson.length(); j++) {
-                reps.add(repsJson.getInt(j));
-            }
-            exercises.add(new LogExerciseSet(setJson.getString("exerciseName"), weights, reps));
+            MeasurementType type = MeasurementType.valueOf(
+                    setJson.optString("measurementType", MeasurementType.WEIGHT_REPS.name()));
+            exercises.add(new LogExerciseSet(
+                    setJson.optString("exerciseId", null),
+                    setJson.getString("exerciseName"),
+                    type,
+                    readMeasurements(setJson, "weights", JSONArray::getDouble),
+                    readMeasurements(setJson, "reps", JSONArray::getInt),
+                    readMeasurements(setJson, "times", JSONArray::getInt),
+                    readMeasurements(setJson, "distances", JSONArray::getDouble)));
         }
         return new LogEntry(
                 json.getString("templateName"),
                 LocalDateTime.parse(json.getString("time")),
                 exercises);
+    }
+
+    private static <T> List<T> readMeasurements(
+            JSONObject json, String key, BiFunction<JSONArray, Integer, T> readValue) {
+        if (!json.has(key)) {
+            return List.of();
+        }
+        JSONArray values = json.getJSONArray(key);
+        List<T> measurements = new ArrayList<>(values.length());
+        for (int i = 0; i < values.length(); i++) {
+            measurements.add(readValue.apply(values, i));
+        }
+        return measurements;
     }
 }
