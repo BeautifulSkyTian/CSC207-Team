@@ -3,7 +3,7 @@ package use_case.search_exercise;
 /**
  * Input Boundary for the Search Exercises use case.
  * Defines the contract implemented by {@link SearchExerciseInteractor} and invoked by
- * {@link SearchExerciseController} for both filtered searches and individual exercise selection.
+ * the controller for both filtered searches and individual exercise selection.
  */
 public interface SearchExerciseInputBoundary {
 
