@@ -7,6 +7,7 @@ import interface_adapter.search_exercise.SearchExerciseViewModel;
 import java.util.List;
 import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
+import use_case.search_exercise.ExerciseFilterOptionsDataAccessInterface;
 import use_case.search_exercise.SearchExerciseDataAccessInterface;
 import use_case.search_exercise.SearchExerciseInputBoundary;
 import use_case.search_exercise.SearchExerciseInteractor;
@@ -16,8 +17,10 @@ import view.SearchExerciseView;
 public class test {
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
-            // 1. Data access
-            SearchExerciseDataAccessInterface dataAccess = new ExternalExerciseApiGateway();
+            // 1. Data access / gateway
+            ExternalExerciseApiGateway gateway = new ExternalExerciseApiGateway();
+            SearchExerciseDataAccessInterface dataAccess = gateway;
+            ExerciseFilterOptionsDataAccessInterface filterOptionsAccess = gateway;
 
             // 2. ViewModel, Presenter, Interactor, Controller
             SearchExerciseViewModel viewModel = new SearchExerciseViewModel();
@@ -26,9 +29,9 @@ public class test {
             SearchExerciseController controller = new SearchExerciseController(interactor);
 
             // 3. Dropdown filter options from the API
-            List<String> bodyParts = dataAccess.fetchAllBodyParts();
-            List<String> targetMuscles = dataAccess.fetchAllMuscles();
-            List<String> equipment = dataAccess.fetchAllEquipments();
+            List<String> bodyParts = filterOptionsAccess.fetchAllBodyParts();
+            List<String> targetMuscles = filterOptionsAccess.fetchAllMuscles();
+            List<String> equipment = filterOptionsAccess.fetchAllEquipments();
 
             // 4. View inside a JFrame
             SearchExerciseView searchView = new SearchExerciseView(
