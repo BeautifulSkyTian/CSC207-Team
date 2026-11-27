@@ -4,7 +4,7 @@ import entities.Exercise;
 
 /**
  * Output Boundary for the Search Exercises use case.
- * Defines the contract implemented by {@link interface_adapter.SearchExercisePresenter}
+ * Defines the contract implemented by {@link interface_adapter.search_exercise.SearchExercisePresenter}
  * to update the ViewModel with search results, full exercise details, or error messages.
  */
 public interface SearchExerciseOutputBoundary {

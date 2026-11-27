@@ -3,6 +3,7 @@ package data_access.SearchExercise;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import entities.Exercise;
+import use_case.search_exercise.ExerciseFilterOptionsDataAccessInterface;
 import use_case.search_exercise.SearchExerciseDataAccessInterface;
 import java.io.IOException;
 import java.net.URI;
@@ -22,7 +23,8 @@ import java.util.Set;
  * Gateway responsible for communicating with the external ExerciseDB V1 API
  * over HTTP and mapping JSON responses into {@link Exercise} entities.
  */
-public class ExternalExerciseApiGateway implements SearchExerciseDataAccessInterface {
+public class ExternalExerciseApiGateway implements SearchExerciseDataAccessInterface,
+        ExerciseFilterOptionsDataAccessInterface {
 
     private static final String DEFAULT_BASE_URL = "https://oss.exercisedb.dev/api/v1";
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(10);
@@ -79,14 +81,6 @@ public class ExternalExerciseApiGateway implements SearchExerciseDataAccessInter
         } catch (IOException ex) {
             throw new RuntimeException("Failed to parse exercise details for ID: " + exerciseId, ex);
         }
-    }
-
-    private String buildExercisesPath(String cursor) {
-        if (cursor == null || cursor.isBlank()) {
-            return "/exercises";
-        }
-        String encodedCursor = URLEncoder.encode(cursor, StandardCharsets.UTF_8);
-        return "/exercises?after=" + encodedCursor;
     }
 
     private JsonNode extractItemsArray(JsonNode root) {
@@ -277,11 +271,6 @@ public class ExternalExerciseApiGateway implements SearchExerciseDataAccessInter
         }
 
         return matchingExercises;
-    }
-
-    @Override
-    public List<Exercise> fetchAllExercises() {
-        return searchExercises(null, null, null, null);
     }
 
     private String buildFilteredExercisesPath(
