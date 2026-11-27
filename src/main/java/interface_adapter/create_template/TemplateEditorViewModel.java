@@ -1,5 +1,6 @@
 package interface_adapter.create_template;
 
+import entities.Template;
 import interface_adapter.ViewModel;
 import use_case.edit_template_draft.WorkoutTemplateDraft;
 
@@ -16,6 +17,11 @@ public final class TemplateEditorViewModel extends ViewModel<TemplateEditorState
     /** Starts a fresh editing session. */
     public void startNewDraft() {
         updateState(emptyState());
+    }
+
+    /** Opens a draft initialized from a saved template. */
+    public void startEditing(Template template) {
+        updateState(new TemplateEditorState(WorkoutTemplateDraft.fromTemplate(template), null, null));
     }
 
     /** Publishes a replacement state to the template editor. */

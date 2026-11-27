@@ -33,9 +33,17 @@ public interface TemplateDataAccessInterface {
      */
     boolean delete(String name);
 
-    // TODO: Template readFromFile(String path)
-    //  Returns the template stored in the JSON file at path. Does not save it.
+    /**
+     * Reads a standalone template JSON file without saving it to the app's storage.
+     * @throws UncheckedIOException if the file could not be read
+     * @throws IllegalArgumentException if the file does not describe a valid template
+     */
+    Template readFromFile(String path);
 
-    // TODO: void writeToFile(Template template, String path)
-    //  Writes the template as JSON to the file at path.
+    /**
+     * Writes a standalone template JSON file at the chosen path.
+     * @throws UncheckedIOException if the export file could not be written
+     * @throws IllegalArgumentException if the path points at the app's template storage
+     */
+    void writeToFile(Template template, String path);
 }

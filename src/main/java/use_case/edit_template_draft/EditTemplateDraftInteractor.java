@@ -30,6 +30,20 @@ public final class EditTemplateDraftInteractor implements EditTemplateDraftInput
     }
 
     @Override
+    public void changeMeasurementType(WorkoutTemplateDraft draft, UUID rowId, MeasurementType measurementType) {
+        int rowIndex = findRowIndex(draft, rowId);
+        if (rowIndex < 0) {
+            presenter.presentFailure("This exercise is no longer in the draft.");
+            return;
+        }
+
+        List<DraftExerciseGroup> groups = new ArrayList<>(draft.getGroups());
+        DraftExerciseGroup row = groups.get(rowIndex);
+        groups.set(rowIndex, new DraftExerciseGroup(rowId, row.getExercise(), measurementType, row.getSets()));
+        presentGroups(draft, groups);
+    }
+
+    @Override
     public void removeExercise(WorkoutTemplateDraft draft, UUID rowId) {
         int rowIndex = findRowIndex(draft, rowId);
         if (rowIndex < 0) {

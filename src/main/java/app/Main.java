@@ -17,6 +17,7 @@ public class Main {
             JFrame application = new AppBuilder()
                     .addHomeView()
                     .addLoadTemplatesUseCase()
+                    .addTemplateEditor()
                     .addStartWorkoutUseCase()
                     .addViewHistoryUseCase()
                     .addImportTemplateUseCase()

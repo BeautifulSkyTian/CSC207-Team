@@ -28,6 +28,10 @@ public final class EditTemplateDraftController {
         interactor.addExercise(currentDraft(), exercise, measurementType);
     }
 
+    public void changeMeasurementType(UUID rowId, MeasurementType measurementType) {
+        interactor.changeMeasurementType(currentDraft(), rowId, measurementType);
+    }
+
     public void removeExercise(UUID rowId) {
         interactor.removeExercise(currentDraft(), rowId);
     }
@@ -37,11 +41,15 @@ public final class EditTemplateDraftController {
     }
 
     public void updateWeightRepSet(UUID rowId, int setIndex, String weight, String reps) {
-        interactor.updateSet(currentDraft(), rowId, setIndex, new DraftSet(weight, reps));
+        updateSet(rowId, setIndex, new DraftSet(weight, reps));
     }
 
     public void updateTimeDistanceSet(UUID rowId, int setIndex, String time, String distance) {
-        interactor.updateSet(currentDraft(), rowId, setIndex, new DraftSet("", "", time, distance));
+        updateSet(rowId, setIndex, new DraftSet("", "", time, distance));
+    }
+
+    public void updateSet(UUID rowId, int setIndex, DraftSet values) {
+        interactor.updateSet(currentDraft(), rowId, setIndex, values);
     }
 
     public void removeSet(UUID rowId, int setIndex) {

@@ -5,7 +5,9 @@ import entities.ExerciseSetGroup;
 import entities.MeasurementType;
 import entities.Template;
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
+import org.json.JSONTokener;
 import use_case.TemplateDataAccessInterface;
 
 import java.io.IOException;
@@ -76,6 +78,42 @@ public class JsonTemplateDataAccessObject implements TemplateDataAccessInterface
         updated.remove(name);
         persist(updated);
         return true;
+    }
+
+    @Override
+    public Template readFromFile(String path) {
+        String content;
+        try {
+            content = Files.readString(Paths.get(path), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+
+        try {
+            JSONTokener input = new JSONTokener(content);
+            JSONObject json = new JSONObject(input);
+            if (input.nextClean() != 0) {
+                throw new IllegalArgumentException("Expected a single workout template.");
+            }
+            return templateFromJson(json);
+        } catch (JSONException e) {
+            throw new IllegalArgumentException("The file does not contain valid workout template JSON.", e);
+        }
+    }
+
+    @Override
+    public void writeToFile(Template template, String path) {
+        Path destination = Paths.get(path).toAbsolutePath().normalize();
+        Path storage = filePath.toAbsolutePath().normalize();
+        try {
+            if (destination.equals(storage) || Files.exists(destination) && Files.exists(storage)
+                    && Files.isSameFile(destination, storage)) {
+                throw new IllegalArgumentException("Choose a location outside the app's template file.");
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+        JsonFiles.replace(destination, templateToJson(template).toString(2));
     }
 
     private void load() {
